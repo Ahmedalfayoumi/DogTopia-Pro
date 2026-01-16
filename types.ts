@@ -71,12 +71,19 @@ export interface TransactionItem {
   total: number;
 }
 
+export interface PurchaseExpense {
+  description: string;
+  amount: number;
+}
+
 export interface Purchase {
   id: string;
+  type: 'Local' | 'Import';
   supplierId: string;
   supplierName: string;
   date: string;
   items: TransactionItem[];
+  expenses?: PurchaseExpense[];
   grandTotal: number;
   paymentTypeId: string;
 }

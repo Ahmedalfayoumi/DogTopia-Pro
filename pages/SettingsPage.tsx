@@ -108,7 +108,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ currentView, setView }) => 
     symbol: '', 
     name: '', 
     digits: 2,
-    exchangeRate: 1 
+    exchangeRate: 1
   });
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -131,7 +131,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ currentView, setView }) => 
     }
   }, [currentView]);
 
-  const localCurrency = currencies.find(c => c.id === companyInfo.localCurrencyId) || currencies[0] || { code: '??', symbol: '?' };
+  const defaultCurrency = useMemo(() => 
+    currencies.find(c => c.id === defaultCurrencyId) || currencies[0] || { code: '??', symbol: '?' },
+    [currencies, defaultCurrencyId]
+  );
 
   const handleCompanySubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -254,7 +257,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ currentView, setView }) => 
                       <button type="button" onClick={() => { setEditingCurrency(null); setCurrencyFormData({ code: '', symbol: '', name: '', digits: 2, exchangeRate: 1 }); setIsCurrencyModalOpen(true); }} className="px-4 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-100 transition-colors flex items-center justify-center animate-in zoom-in-90" title="Add New Currency"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg></button>
                     )}
                   </div>
-                  <p className="text-[10px] text-gray-400 italic mt-2">This is the base currency for all accounting and reports.</p>
                 </div>
                 <div className="md:col-span-2 space-y-2">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">BUSINESS ADDRESS</label>
@@ -399,11 +401,26 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ currentView, setView }) => 
               <div className="overflow-x-auto border border-gray-100 rounded-2xl">
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr><th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Default</th><th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Name & Code</th><th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Symbol</th><th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Exchange Rate</th><th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th></tr>
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Default</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Name & Code</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Symbol</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Exchange Rate</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                    </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {currencies.length === 0 ? <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No currencies defined.</td></tr> : currencies.map((curr) => (
-                        <tr key={curr.id} className={`hover:bg-gray-50 transition-colors ${curr.id === defaultCurrencyId ? 'bg-indigo-50/20' : ''}`}><td className="px-6 py-4"><input type="radio" name="default_currency" checked={curr.id === defaultCurrencyId} onChange={() => setDefaultCurrency(curr.id)} className="w-4 h-4 text-indigo-600 cursor-pointer"/></td><td className="px-6 py-4"><div className="flex flex-col"><span className="font-bold text-gray-800">{curr.name}</span><span className="text-xs text-gray-400 font-mono">{curr.code}</span></div></td><td className="px-6 py-4 text-center font-bold text-lg text-indigo-600">{curr.symbol}</td><td className="px-6 py-4 text-center font-bold text-gray-600">{curr.exchangeRate}</td><td className="px-6 py-4 text-right space-x-2"><button onClick={() => { setEditingCurrency(curr); setCurrencyFormData({ code: curr.code, symbol: curr.symbol, name: curr.name, digits: curr.digits, exchangeRate: curr.exchangeRate }); setIsCurrencyModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-colors">Edit</button><button onClick={() => deleteCurrency(curr.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-30 font-bold text-sm transition-colors" disabled={currencies.length <= 1}>Delete</button></td></tr>
+                        <tr key={curr.id} className={`hover:bg-gray-50 transition-colors ${curr.id === defaultCurrencyId ? 'bg-indigo-50/20' : ''}`}>
+                          <td className="px-6 py-4"><input type="radio" name="default_currency" checked={curr.id === defaultCurrencyId} onChange={() => setDefaultCurrency(curr.id)} className="w-4 h-4 text-indigo-600 cursor-pointer"/></td>
+                          <td className="px-6 py-4"><div className="flex flex-col"><span className="font-bold text-gray-800">{curr.name}</span><span className="text-xs text-gray-400 font-mono">{curr.code}</span></div></td>
+                          <td className="px-6 py-4 text-center font-bold text-lg text-indigo-600">{curr.symbol}</td>
+                          <td className="px-6 py-4 text-center font-bold text-gray-600">{curr.exchangeRate}</td>
+                          <td className="px-6 py-4 text-right space-x-2">
+                            <button onClick={() => { setEditingCurrency(curr); setCurrencyFormData({ code: curr.code, symbol: curr.symbol, name: curr.name, digits: curr.digits, exchangeRate: curr.exchangeRate }); setIsCurrencyModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-colors">Edit</button>
+                            <button onClick={() => deleteCurrency(curr.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-30 font-bold text-sm transition-colors" disabled={currencies.length <= 1}>Delete</button>
+                          </td>
+                        </tr>
                       ))}
                   </tbody>
                 </table>
@@ -448,6 +465,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ currentView, setView }) => 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">ISO CODE</label><input required value={currencyFormData.code} onChange={(e) => setCurrencyFormData({ ...currencyFormData, code: e.target.value.toUpperCase() })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" maxLength={3} /></div>
                   <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">SYMBOL</label><input required value={currencyFormData.symbol} onChange={(e) => setCurrencyFormData({ ...currencyFormData, symbol: e.target.value })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" maxLength={5} /></div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">EXCHANGE RATE</label>
+                  <div className="relative">
+                    <input 
+                      required 
+                      type="number" 
+                      step="any"
+                      value={currencyFormData.exchangeRate} 
+                      onChange={(e) => setCurrencyFormData({ ...currencyFormData, exchangeRate: parseFloat(e.target.value) || 0 })} 
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-600" 
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">
+                      per 1 {defaultCurrency.code}
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-gray-400 italic">Example: if 1 {defaultCurrency.code} = 1.41 USD, enter 1.41</p>
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setIsCurrencyModalOpen(false)} className="flex-1 py-4 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>

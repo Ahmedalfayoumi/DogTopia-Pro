@@ -26,7 +26,7 @@ const AppContent: React.FC = () => {
       case 'purchases':
       case 'purchases_local':
       case 'purchases_import':
-        return <PurchasePage setView={setCurrentView} />;
+        return <PurchasePage currentView={currentView} setView={setCurrentView} />;
       case 'sales':
         return <SalesPage setView={setCurrentView} />;
       case 'settings':

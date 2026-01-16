@@ -56,9 +56,21 @@ const INITIAL_CURRENCY: Currency = {
   code: 'JOD', 
   symbol: 'JD', 
   name: 'Jordanian Dinar', 
-  digits: 3, 
-  exchangeRate: 1 
+  digits: 3,
+  exchangeRate: 1
 };
+
+const SEED_CURRENCIES: Currency[] = [
+  INITIAL_CURRENCY,
+  {
+    id: '2',
+    code: 'USD',
+    symbol: '$',
+    name: 'US Dollar',
+    digits: 2,
+    exchangeRate: 0.787
+  }
+];
 
 const INITIAL_PAYMENT_TYPES: PaymentType[] = [
   { id: 'pt-1', name: 'Cash', isDefault: true },
@@ -101,11 +113,11 @@ const SEED_CLIENTS: Client[] = [
 ];
 
 const SEED_PURCHASES: Purchase[] = [
-  { id: 'PUR-0001', supplierId: 'Sup-0002', supplierName: 'TechDistro Jordan', date: '2023-12-01', grandTotal: 9500, paymentTypeId: 'pt-1', items: [{ itemId: 'i-1', quantity: 10, unitPrice: 950, total: 9500 }] },
-  { id: 'PUR-0002', supplierId: 'Sup-0003', supplierName: 'MegaParts Ltd', date: '2023-12-05', grandTotal: 5750, paymentTypeId: 'pt-4', items: [{ itemId: 'i-2', quantity: 5, unitPrice: 1150, total: 5750 }] },
-  { id: 'PUR-0003', supplierId: 'Sup-0004', supplierName: 'Global Supply Chain', date: '2023-12-10', grandTotal: 850, paymentTypeId: 'pt-2', items: [{ itemId: 'i-3', quantity: 10, unitPrice: 85, total: 850 }] },
-  { id: 'PUR-0004', supplierId: 'Sup-0005', supplierName: 'Elite Hardware', date: '2023-12-15', grandTotal: 2250, paymentTypeId: 'pt-4', items: [{ itemId: 'i-4', quantity: 5, unitPrice: 450, total: 2250 }] },
-  { id: 'PUR-0005', supplierId: 'Sup-0006', supplierName: 'Prime Components', date: '2023-12-20', grandTotal: 950, paymentTypeId: 'pt-1', items: [{ itemId: 'i-5', quantity: 10, unitPrice: 95, total: 950 }] },
+  { id: 'PUR-0001', type: 'Local', supplierId: 'Sup-0002', supplierName: 'TechDistro Jordan', date: '2023-12-01', grandTotal: 9500, paymentTypeId: 'pt-1', items: [{ itemId: 'i-1', quantity: 10, unitPrice: 950, total: 9500 }] },
+  { id: 'PUR-0002', type: 'Local', supplierId: 'Sup-0003', supplierName: 'MegaParts Ltd', date: '2023-12-05', grandTotal: 5750, paymentTypeId: 'pt-4', items: [{ itemId: 'i-2', quantity: 5, unitPrice: 1150, total: 5750 }] },
+  { id: 'PUR-0003', type: 'Import', supplierId: 'Sup-0004', supplierName: 'Global Supply Chain', date: '2023-12-10', grandTotal: 1050, paymentTypeId: 'pt-2', items: [{ itemId: 'i-3', quantity: 10, unitPrice: 85, total: 850 }], expenses: [{ description: 'Shipping', amount: 200 }] },
+  { id: 'PUR-0004', type: 'Local', supplierId: 'Sup-0005', supplierName: 'Elite Hardware', date: '2023-12-15', grandTotal: 2250, paymentTypeId: 'pt-4', items: [{ itemId: 'i-4', quantity: 5, unitPrice: 450, total: 2250 }] },
+  { id: 'PUR-0005', type: 'Local', supplierId: 'Sup-0006', supplierName: 'Prime Components', date: '2023-12-20', grandTotal: 950, paymentTypeId: 'pt-1', items: [{ itemId: 'i-5', quantity: 10, unitPrice: 95, total: 950 }] },
 ];
 
 const SEED_SALES: Sale[] = [
@@ -144,7 +156,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
     const saved = localStorage.getItem('inv_purchases');
-    return saved ? JSON.parse(saved) : SEED_PURCHASES;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.map((p: any) => ({ ...p, type: p.type || 'Local' }));
+    }
+    return SEED_PURCHASES;
   });
 
   const [sales, setSales] = useState<Sale[]>(() => {
@@ -164,7 +180,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [currencies, setCurrencies] = useState<Currency[]>(() => {
     const saved = localStorage.getItem('inv_currencies');
-    return saved ? JSON.parse(saved) : [INITIAL_CURRENCY];
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed.map((c: any) => ({
+        ...c,
+        exchangeRate: c.exchangeRate !== undefined ? c.exchangeRate : 1
+      }));
+    }
+    return SEED_CURRENCIES;
   });
 
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>(() => {
@@ -188,7 +211,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const saved = localStorage.getItem('inv_theme');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Migration: Ensure colors array exists if coming from old primaryColor single property
       if (!parsed.colors) {
         parsed.colors = [parsed.primaryColor || '#4f46e5', '#10b981'];
         delete parsed.primaryColor;
@@ -216,7 +238,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     else localStorage.removeItem('inv_logo');
   }, [logo]);
 
-  // Apply Favicon
   useEffect(() => {
     if (favicon) {
       localStorage.setItem('inv_favicon', favicon);
@@ -233,7 +254,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [favicon]);
 
-  // Apply Theme Styles (Multiple colors and Font)
   useEffect(() => {
     const root = document.documentElement;
     const styleId = 'dynamic-theme-overrides';
@@ -266,8 +286,6 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .border-indigo-600 { border-color: var(--primary-color) !important; }
       .border-indigo-100 { border-color: var(--primary-light) !important; }
       .focus\\:ring-indigo-500:focus { --tw-ring-color: var(--primary-color) !important; }
-
-      /* Example usage of secondary color */
       .bg-emerald-600 { background-color: var(--secondary-color) !important; }
       .text-emerald-600 { color: var(--secondary-color) !important; }
       .bg-emerald-50 { background-color: var(--secondary-light) !important; }

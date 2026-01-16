@@ -17,7 +17,8 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ items: true, settings: true, purchases: true });
+  // Initialize with empty object so all menus are collapsed by default
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
   const { companyInfo, logo } = useInventory();
 
   const navItems: NavItem[] = [
@@ -56,14 +57,18 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
   ];
 
   const toggleMenu = (id: string) => {
-    setExpandedMenus(prev => ({ ...prev, [id]: !prev[id] }));
+    setExpandedMenus(prev => {
+      const isCurrentlyExpanded = prev[id];
+      // Reset all and only set the target one to achieve accordion behavior
+      return { [id]: !isCurrentlyExpanded };
+    });
   };
 
   const handleNavClick = (item: NavItem) => {
     if (item.children) {
       if (isCollapsed) {
         setIsCollapsed(false);
-        setExpandedMenus(prev => ({ ...prev, [item.id]: true }));
+        setExpandedMenus({ [item.id]: true });
       } else {
         toggleMenu(item.id);
       }
@@ -73,6 +78,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
         setView(item.children[0].id);
       }
     } else {
+      // For items without children, collapse all menus
+      setExpandedMenus({});
       setView(item.id);
     }
   };
