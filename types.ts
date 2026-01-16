@@ -92,8 +92,8 @@ export interface Sale {
 }
 
 export interface ThemeConfig {
-  primaryColor: string;
-  fontFamily: 'Inter' | 'Roboto' | 'Poppins' | 'Montserrat' | 'System';
+  colors: string[]; // Array of colors, index 0 is primary, 1 is secondary
+  fontFamily: string;
 }
 
 export type View = 

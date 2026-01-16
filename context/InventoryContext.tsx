@@ -68,7 +68,7 @@ const INITIAL_PAYMENT_TYPES: PaymentType[] = [
 ];
 
 const INITIAL_THEME: ThemeConfig = {
-  primaryColor: '#4f46e5',
+  colors: ['#4f46e5', '#10b981'],
   fontFamily: 'Inter'
 };
 
@@ -186,7 +186,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
     const saved = localStorage.getItem('inv_theme');
-    return saved ? JSON.parse(saved) : INITIAL_THEME;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Migration: Ensure colors array exists if coming from old primaryColor single property
+      if (!parsed.colors) {
+        parsed.colors = [parsed.primaryColor || '#4f46e5', '#10b981'];
+        delete parsed.primaryColor;
+      }
+      return parsed;
+    }
+    return INITIAL_THEME;
   });
 
   useEffect(() => localStorage.setItem('inv_items', JSON.stringify(items)), [items]);
@@ -224,7 +233,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [favicon]);
 
-  // Apply Theme Styles (Primary Color and Font)
+  // Apply Theme Styles (Multiple colors and Font)
   useEffect(() => {
     const root = document.documentElement;
     const styleId = 'dynamic-theme-overrides';
@@ -236,10 +245,15 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       document.head.appendChild(styleTag);
     }
 
+    const primaryColor = themeConfig.colors[0] || '#4f46e5';
+    const secondaryColor = themeConfig.colors[1] || '#10b981';
+
     styleTag.innerHTML = `
       :root {
-        --primary-color: ${themeConfig.primaryColor};
-        --primary-light: ${themeConfig.primaryColor}15; 
+        --primary-color: ${primaryColor};
+        --primary-light: ${primaryColor}15; 
+        --secondary-color: ${secondaryColor};
+        --secondary-light: ${secondaryColor}15;
       }
       body {
         font-family: '${themeConfig.fontFamily}', sans-serif !important;
@@ -252,6 +266,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .border-indigo-600 { border-color: var(--primary-color) !important; }
       .border-indigo-100 { border-color: var(--primary-light) !important; }
       .focus\\:ring-indigo-500:focus { --tw-ring-color: var(--primary-color) !important; }
+
+      /* Example usage of secondary color */
+      .bg-emerald-600 { background-color: var(--secondary-color) !important; }
+      .text-emerald-600 { color: var(--secondary-color) !important; }
+      .bg-emerald-50 { background-color: var(--secondary-light) !important; }
     `;
   }, [themeConfig]);
 

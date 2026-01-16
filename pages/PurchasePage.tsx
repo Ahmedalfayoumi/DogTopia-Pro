@@ -18,6 +18,8 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ setView }) => {
     paymentTypes, defaultPaymentTypeId, companyInfo, logo, themeConfig 
   } = useInventory();
 
+  const primaryColor = themeConfig.colors[0] || '#4f46e5';
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view' | 'success'>('create');
@@ -119,13 +121,13 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ setView }) => {
           <style>
             body { font-family: 'Inter', sans-serif; color: #333; margin: 40px; }
             .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-            .company-info h1 { margin: 0; color: ${themeConfig.primaryColor}; }
+            .company-info h1 { margin: 0; color: ${primaryColor}; }
             .invoice-details { text-align: right; }
             .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
             table { width: 100%; border-collapse: collapse; }
             th { text-align: left; border-bottom: 2px solid #333; padding: 12px 0; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
             .total-row { margin-top: 40px; text-align: right; }
-            .total-row h2 { color: ${themeConfig.primaryColor}; font-size: 32px; margin: 0; }
+            .total-row h2 { color: ${primaryColor}; font-size: 32px; margin: 0; }
           </style>
         </head>
         <body>
@@ -186,7 +188,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ setView }) => {
 
     // Company Header
     doc.setFontSize(22);
-    doc.setTextColor(themeConfig.primaryColor);
+    doc.setTextColor(primaryColor);
     doc.text(companyInfo.name, 14, 20);
     
     doc.setFontSize(10);
@@ -232,7 +234,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ setView }) => {
       head: [['Description', 'Qty', 'Unit Price', 'Total']],
       body: tableData,
       theme: 'striped',
-      headStyles: { fillColor: themeConfig.primaryColor },
+      headStyles: { fillColor: primaryColor },
       columnStyles: {
         1: { halign: 'center' },
         2: { halign: 'right' },
@@ -245,7 +247,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ setView }) => {
     doc.setFontSize(12);
     doc.text('Grand Total:', 140, finalY + 20);
     doc.setFontSize(20);
-    doc.setTextColor(themeConfig.primaryColor);
+    doc.setTextColor(primaryColor);
     doc.text(`${curr.symbol} ${purchase.grandTotal.toFixed(curr.digits)}`, 140, finalY + 30);
 
     doc.save(`Invoice_${purchase.id}.pdf`);
