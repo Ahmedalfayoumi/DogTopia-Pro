@@ -11,23 +11,31 @@ import SettingsPage from './pages/SettingsPage';
 import { View } from './types';
 
 const AppContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<View>('items');
+  const [currentView, setCurrentView] = useState<View>('inventory');
   const { companyInfo, logo } = useInventory();
 
   const renderContent = () => {
     switch (currentView) {
       case 'items':
+      case 'inventory':
         return <ItemsPage />;
       case 'suppliers':
         return <SuppliersPage />;
       case 'clients':
         return <ClientsPage />;
       case 'purchases':
-        return <PurchasePage />;
+      case 'purchases_local':
+      case 'purchases_import':
+        return <PurchasePage setView={setCurrentView} />;
       case 'sales':
-        return <SalesPage />;
+        return <SalesPage setView={setCurrentView} />;
       case 'settings':
-        return <SettingsPage />;
+      case 'settings_company':
+      case 'settings_appearance':
+      case 'settings_users':
+      case 'settings_currencies':
+      case 'settings_payments':
+        return <SettingsPage currentView={currentView} setView={setCurrentView} />;
       default:
         return <ItemsPage />;
     }

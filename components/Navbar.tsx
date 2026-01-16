@@ -3,6 +3,13 @@ import React, { useState } from 'react';
 import { View } from '../types';
 import { useInventory } from '../context/InventoryContext';
 
+interface NavItem {
+  id: View;
+  label: string;
+  icon: string;
+  children?: NavItem[];
+}
+
 interface NavbarProps {
   currentView: View;
   setView: (view: View) => void;
@@ -10,16 +17,65 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({ items: true, settings: true, purchases: true });
   const { companyInfo, logo } = useInventory();
 
-  const navItems: { id: View; label: string; icon: string }[] = [
-    { id: 'items', label: 'Items', icon: '📦' },
+  const navItems: NavItem[] = [
+    { 
+      id: 'items', 
+      label: 'Items', 
+      icon: '📦',
+      children: [
+        { id: 'inventory', label: 'Inventory', icon: '📋' }
+      ]
+    },
     { id: 'suppliers', label: 'Suppliers', icon: '🤝' },
     { id: 'clients', label: 'Clients', icon: '👥' },
-    { id: 'purchases', label: 'Purchases', icon: '📥' },
+    { 
+      id: 'purchases', 
+      label: 'Purchases', 
+      icon: '📥',
+      children: [
+        { id: 'purchases_local', label: 'Local Purchase', icon: '🏠' },
+        { id: 'purchases_import', label: 'Importing Goods', icon: '🚢' }
+      ]
+    },
     { id: 'sales', label: 'Sales', icon: '📤' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { 
+      id: 'settings', 
+      label: 'Settings', 
+      icon: '⚙️',
+      children: [
+        { id: 'settings_company', label: 'Company Info', icon: '🏢' },
+        { id: 'settings_appearance', label: 'Theme & Logo', icon: '🎨' },
+        { id: 'settings_users', label: 'Users', icon: '👥' },
+        { id: 'settings_currencies', label: 'Currencies', icon: '💰' },
+        { id: 'settings_payments', label: 'Payment Types', icon: '💳' },
+      ]
+    },
   ];
+
+  const toggleMenu = (id: string) => {
+    setExpandedMenus(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleNavClick = (item: NavItem) => {
+    if (item.children) {
+      if (isCollapsed) {
+        setIsCollapsed(false);
+        setExpandedMenus(prev => ({ ...prev, [item.id]: true }));
+      } else {
+        toggleMenu(item.id);
+      }
+      // Navigate to the first child if current view isn't already a child
+      const isAlreadyOnChild = item.children.some(c => c.id === currentView);
+      if (!isAlreadyOnChild) {
+        setView(item.children[0].id);
+      }
+    } else {
+      setView(item.id);
+    }
+  };
 
   return (
     <aside 
@@ -50,35 +106,70 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
       </div>
 
       {/* Navigation Items */}
-      <div className="flex-grow py-6 px-3 space-y-2 overflow-y-auto">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setView(item.id)}
-            title={isCollapsed ? item.label : ''}
-            className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all relative group ${
-              currentView === item.id
-                ? 'bg-indigo-50 text-indigo-700 font-bold shadow-sm'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-            }`}
-          >
-            <span className="text-xl shrink-0 w-8 text-center">{item.icon}</span>
-            <span 
-              className={`whitespace-nowrap transition-all duration-300 overflow-hidden text-sm ${
-                isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
-              }`}
-            >
-              {item.label}
-            </span>
-            
-            {/* Tooltip for collapsed state */}
-            {isCollapsed && (
-              <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-[10px] font-bold uppercase rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
-                {item.label}
-              </div>
-            )}
-          </button>
-        ))}
+      <div className="flex-grow py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+        {navItems.map((item) => {
+          const isSelected = currentView === item.id || item.children?.some(child => child.id === currentView);
+          const isExpanded = expandedMenus[item.id];
+
+          return (
+            <div key={item.id} className="space-y-1">
+              <button
+                onClick={() => handleNavClick(item)}
+                title={isCollapsed ? item.label : ''}
+                className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all relative group ${
+                  isSelected && !item.children
+                    ? 'bg-indigo-50 text-indigo-700 font-bold shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                } ${isSelected && item.children ? 'text-indigo-700 font-bold' : ''}`}
+              >
+                <span className="text-xl shrink-0 w-8 text-center">{item.icon}</span>
+                <span 
+                  className={`flex-grow whitespace-nowrap transition-all duration-300 overflow-hidden text-sm text-left ${
+                    isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
+                  }`}
+                >
+                  {item.label}
+                </span>
+
+                {!isCollapsed && item.children && (
+                  <svg 
+                    className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                )}
+                
+                {/* Tooltip for collapsed state */}
+                {isCollapsed && (
+                  <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-[10px] font-bold uppercase rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
+                    {item.label}
+                  </div>
+                )}
+              </button>
+
+              {/* Submenu rendering */}
+              {!isCollapsed && item.children && isExpanded && (
+                <div className="ml-8 pl-4 border-l-2 border-indigo-100 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                  {item.children.map(child => (
+                    <button
+                      key={child.id}
+                      onClick={() => setView(child.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all ${
+                        currentView === child.id
+                          ? 'text-indigo-600 font-black bg-indigo-50/50'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="text-sm shrink-0">{child.icon}</span>
+                      <span className="truncate">{child.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Collapse Toggle Footer */}

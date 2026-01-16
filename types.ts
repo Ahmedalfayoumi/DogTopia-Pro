@@ -51,6 +51,12 @@ export interface Currency {
   exchangeRate: number; // Rate relative to the local base currency
 }
 
+export interface PaymentType {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+}
+
 export interface User {
   id: string;
   fullName: string;
@@ -72,6 +78,7 @@ export interface Purchase {
   date: string;
   items: TransactionItem[];
   grandTotal: number;
+  paymentTypeId: string;
 }
 
 export interface Sale {
@@ -81,6 +88,26 @@ export interface Sale {
   date: string;
   items: TransactionItem[];
   grandTotal: number;
+  paymentTypeId: string;
 }
 
-export type View = 'items' | 'purchases' | 'sales' | 'suppliers' | 'clients' | 'settings';
+export interface ThemeConfig {
+  primaryColor: string;
+  fontFamily: 'Inter' | 'Roboto' | 'Poppins' | 'Montserrat' | 'System';
+}
+
+export type View = 
+  | 'items' 
+  | 'inventory' 
+  | 'purchases' 
+  | 'purchases_local' 
+  | 'purchases_import' 
+  | 'sales' 
+  | 'suppliers' 
+  | 'clients' 
+  | 'settings' 
+  | 'settings_company' 
+  | 'settings_appearance' 
+  | 'settings_users' 
+  | 'settings_currencies'
+  | 'settings_payments';
