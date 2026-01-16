@@ -1,13 +1,17 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useInventory } from '../context/InventoryContext';
 import { Item } from '../types';
 import * as XLSX from 'https://esm.sh/xlsx';
+
+type SortKey = 'name' | 'unitPrice' | 'stock';
 
 const ItemsPage: React.FC = () => {
   const { items, addItem, updateItem, deleteItem, currencies, defaultCurrencyId } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currency = currencies.find(c => c.id === defaultCurrencyId) || currencies[0];
@@ -24,6 +28,30 @@ const ItemsPage: React.FC = () => {
     sellingUnit: '',
     conversionStorageToSelling: 1,
   });
+
+  const filteredAndSortedItems = useMemo(() => {
+    let result = items.filter(item => 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      item.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (sortConfig) {
+      result.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
+  }, [items, searchTerm, sortConfig]);
+
+  const handleSort = (key: SortKey) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +163,11 @@ const ItemsPage: React.FC = () => {
       if (fileInputRef.current) fileInputRef.current.value = "";
     };
     reader.readAsBinaryString(file);
+  };
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortConfig?.key !== column) return <span className="ml-1 opacity-20">↕</span>;
+    return sortConfig.direction === 'asc' ? <span className="ml-1 text-indigo-600">↑</span> : <span className="ml-1 text-indigo-600">↓</span>;
   };
 
   return (
@@ -301,9 +334,23 @@ const ItemsPage: React.FC = () => {
       {/* Main Content */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white">
-          <div>
+          <div className="flex-grow">
             <h2 className="text-2xl font-bold text-gray-800">Inventory Catalog</h2>
             <p className="text-gray-500 text-sm mt-1">Detailed view of products and multi-unit configurations</p>
+            
+            {/* Search Box */}
+            <div className="mt-4 relative max-w-md">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              </span>
+              <input
+                type="text"
+                placeholder="Search by name or barcode..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -348,26 +395,45 @@ const ItemsPage: React.FC = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Item & Units</th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest cursor-pointer hover:text-indigo-600 transition-colors"
+                  onClick={() => handleSort('name')}
+                >
+                  Item & Units <SortIcon column="name" />
+                </th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Conversions</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Selling Price</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Current Stock</th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right cursor-pointer hover:text-indigo-600 transition-colors"
+                  onClick={() => handleSort('unitPrice')}
+                >
+                  Selling Price <SortIcon column="unitPrice" />
+                </th>
+                <th 
+                  className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center cursor-pointer hover:text-indigo-600 transition-colors"
+                  onClick={() => handleSort('stock')}
+                >
+                  Current Stock <SortIcon column="stock" />
+                </th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {items.length === 0 ? (
+              {filteredAndSortedItems.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-16 text-center text-gray-400 italic">
                     <div className="flex flex-col items-center justify-center space-y-3">
-                      <p>Your catalog is empty.</p>
-                      <button onClick={openAddModal} className="text-indigo-600 font-bold hover:underline underline-offset-4">Add your first item manually</button>
-                      <span className="text-[10px] text-gray-300">or use the Import Excel button above</span>
+                      <p>{searchTerm ? 'No items found matching your search.' : 'Your catalog is empty.'}</p>
+                      {!searchTerm && (
+                        <>
+                          <button onClick={openAddModal} className="text-indigo-600 font-bold hover:underline underline-offset-4">Add your first item manually</button>
+                          <span className="text-[10px] text-gray-300">or use the Import Excel button above</span>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
               ) : (
-                items.map((item) => (
+                filteredAndSortedItems.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
@@ -410,7 +476,7 @@ const ItemsPage: React.FC = () => {
                           </svg>
                         </button>
                         <button
-                          onClick={() => deleteItem(item.id)}
+                          onClick={() => { if(window.confirm('Delete this item?')) deleteItem(item.id) }}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete Item"
                         >

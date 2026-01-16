@@ -26,10 +26,10 @@ interface InventoryContextType {
   addClient: (client: Omit<Client, 'id' | 'isDefault'>) => void;
   updateClient: (id: string, client: Partial<Client>) => void;
   deleteClient: (id: string) => void;
-  recordPurchase: (purchase: Omit<Purchase, 'id'>) => void;
+  recordPurchase: (purchase: Omit<Purchase, 'id'>) => Purchase;
   updatePurchase: (id: string, purchase: Purchase) => void;
   deletePurchase: (id: string) => void;
-  recordSale: (sale: Omit<Sale, 'id'>) => void;
+  recordSale: (sale: Omit<Sale, 'id'>) => Sale;
   updateSale: (id: string, sale: Sale) => void;
   deleteSale: (id: string) => void;
   updateCompanyInfo: (info: CompanyInfo) => void;
@@ -236,17 +236,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       document.head.appendChild(styleTag);
     }
 
-    // Convert hex to rgb for opacity variants if needed, or just use variable injection
-    // We override common Tailwind classes that use 'indigo' with the dynamic color
     styleTag.innerHTML = `
       :root {
         --primary-color: ${themeConfig.primaryColor};
-        --primary-light: ${themeConfig.primaryColor}15; /* ~8% opacity */
+        --primary-light: ${themeConfig.primaryColor}15; 
       }
       body {
         font-family: '${themeConfig.fontFamily}', sans-serif !important;
       }
-      /* Global Indigo Class Overrides */
       .bg-indigo-600 { background-color: var(--primary-color) !important; }
       .hover\\:bg-indigo-700:hover { filter: brightness(0.9); }
       .text-indigo-600 { color: var(--primary-color) !important; }
@@ -307,11 +304,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   const recordPurchase = useCallback((purchaseData: Omit<Purchase, 'id'>) => {
+    let newPurchase: Purchase;
     setPurchases(prev => {
       const numericIds = prev.map(p => parseInt(p.id.split('-')[1])).filter(n => !isNaN(n));
       const nextId = (numericIds.length > 0 ? Math.max(...numericIds) : 0) + 1;
       const formattedId = `PUR-${nextId.toString().padStart(4, '0')}`;
-      const newPurchase: Purchase = { ...purchaseData, id: formattedId };
+      newPurchase = { ...purchaseData, id: formattedId };
       
       setItems(prevItems => {
         const updatedItems = [...prevItems];
@@ -323,6 +321,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       return [newPurchase, ...prev];
     });
+    // @ts-ignore
+    return newPurchase;
   }, []);
 
   const updatePurchase = useCallback((id: string, updatedPurchase: Purchase) => {
@@ -363,11 +363,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   const recordSale = useCallback((saleData: Omit<Sale, 'id'>) => {
+    let newSale: Sale;
     setSales(prev => {
       const numericIds = prev.map(s => parseInt(s.id.split('-')[1])).filter(n => !isNaN(n));
       const nextId = (numericIds.length > 0 ? Math.max(...numericIds) : 0) + 1;
       const formattedId = `INV-${nextId.toString().padStart(4, '0')}`;
-      const newSale: Sale = { ...saleData, id: formattedId };
+      newSale = { ...saleData, id: formattedId };
       setItems(prevItems => {
         const updatedItems = [...prevItems];
         newSale.items.forEach(sItem => {
@@ -378,6 +379,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       return [newSale, ...prev];
     });
+    // @ts-ignore
+    return newSale;
   }, []);
 
   const updateSale = useCallback((id: string, updatedSale: Sale) => {
