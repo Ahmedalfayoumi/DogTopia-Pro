@@ -1,12 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useInventory } from '../context/InventoryContext';
 import { Item } from '../types';
+import * as XLSX from 'https://esm.sh/xlsx';
 
 const ItemsPage: React.FC = () => {
-  const { items, addItem, updateItem, deleteItem } = useInventory();
+  const { items, addItem, updateItem, deleteItem, currencies, defaultCurrencyId } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const currency = currencies.find(c => c.id === defaultCurrencyId) || currencies[0];
+  
   const [formData, setFormData] = useState<Omit<Item, 'id'>>({
     name: '',
     barcode: '',
@@ -69,6 +74,69 @@ const ItemsPage: React.FC = () => {
     setEditingId(null);
   };
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        "Name": "Sample Product",
+        "Barcode": "123456789",
+        "Description": "High quality sample item",
+        "Selling Price": 25.00,
+        "Current Stock": 0,
+        "Purchase Unit": "Box",
+        "Storage Unit": "Pack",
+        "Conversion P to S": 10,
+        "Selling Unit": "Piece",
+        "Conversion S to Sell": 5
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ItemsTemplate");
+    XLSX.writeFile(wb, "Inventory_Template.xlsx");
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        let importCount = 0;
+        data.forEach((row: any) => {
+          if (row["Name"]) {
+            addItem({
+              name: String(row["Name"]),
+              barcode: String(row["Barcode"] || ""),
+              description: String(row["Description"] || ""),
+              unitPrice: parseFloat(row["Selling Price"]) || 0,
+              stock: parseInt(row["Current Stock"]) || 0,
+              purchaseUnit: String(row["Purchase Unit"] || "Box"),
+              storageUnit: String(row["Storage Unit"] || "Pack"),
+              conversionPurchaseToStorage: parseFloat(row["Conversion P to S"]) || 1,
+              sellingUnit: String(row["Selling Unit"] || "Piece"),
+              conversionStorageToSelling: parseFloat(row["Conversion S to Sell"]) || 1,
+            });
+            importCount++;
+          }
+        });
+        alert(`Successfully imported ${importCount} items!`);
+      } catch (error) {
+        console.error("Error parsing excel:", error);
+        alert("Failed to parse the Excel file. Please ensure it follows the template format.");
+      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Modal Overlay */}
@@ -126,7 +194,7 @@ const ItemsPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Selling Price ($)</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Selling Price ({currency.symbol})</label>
                   <input
                     required
                     type="number"
@@ -232,15 +300,39 @@ const ItemsPage: React.FC = () => {
 
       {/* Main Content */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
+        <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Inventory Catalog</h2>
-            <p className="text-gray-500 text-sm mt-1">Detailed view of products and their multi-unit configurations</p>
+            <p className="text-gray-500 text-sm mt-1">Detailed view of products and multi-unit configurations</p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="hidden sm:inline-block bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-indigo-100">
-              {items.length} Registered Items
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleDownloadTemplate}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 text-xs font-bold rounded-xl border border-gray-200 hover:bg-gray-100 transition-all"
+              title="Download Excel Template"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Template
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-all"
+              title="Import from Excel"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Import Excel
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept=".xlsx, .xls, .csv" 
+              onChange={handleImportExcel} 
+            />
             <button
               onClick={openAddModal}
               className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 hover:scale-[1.02] active:scale-[0.98]"
@@ -269,7 +361,8 @@ const ItemsPage: React.FC = () => {
                   <td colSpan={5} className="px-6 py-16 text-center text-gray-400 italic">
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <p>Your catalog is empty.</p>
-                      <button onClick={openAddModal} className="text-indigo-600 font-bold hover:underline underline-offset-4">Add your first item</button>
+                      <button onClick={openAddModal} className="text-indigo-600 font-bold hover:underline underline-offset-4">Add your first item manually</button>
+                      <span className="text-[10px] text-gray-300">or use the Import Excel button above</span>
                     </div>
                   </td>
                 </tr>
@@ -279,7 +372,7 @@ const ItemsPage: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-gray-900">{item.name}</span>
-                        {item.barcode && <span className="text-[10px] text-gray-400 font-mono">{item.barcode}</span>}
+                        {item.barcode && <span className="text-[10px] text-gray-400 font-mono font-bold tracking-tight">{item.barcode}</span>}
                         <div className="flex items-center gap-1 mt-1">
                           <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{item.purchaseUnit}</span>
                           <span className="text-[10px] text-gray-300">→</span>
@@ -295,7 +388,7 @@ const ItemsPage: React.FC = () => {
                         <div>1 {item.storageUnit} = {item.conversionStorageToSelling} {item.sellingUnit}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right text-gray-700 font-mono font-medium">${item.unitPrice.toFixed(2)} / {item.sellingUnit}</td>
+                    <td className="px-6 py-4 text-right text-gray-700 font-mono font-medium">{currency.symbol} {item.unitPrice.toFixed(currency.digits)} / {item.sellingUnit}</td>
                     <td className="px-6 py-4 text-center">
                       <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
                         item.stock <= 5 

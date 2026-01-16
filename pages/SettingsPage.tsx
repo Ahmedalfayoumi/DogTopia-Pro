@@ -1,23 +1,36 @@
 
 import React, { useState, useRef } from 'react';
 import { useInventory } from '../context/InventoryContext';
-import { CompanyInfo, User } from '../types';
+import { CompanyInfo, User, Currency } from '../types';
 
 const SettingsPage: React.FC = () => {
   const { 
     companyInfo, updateCompanyInfo, 
     logo, updateLogo, 
     favicon, updateFavicon,
-    systemUsers, addSystemUser, updateSystemUser, deleteSystemUser 
+    systemUsers, addSystemUser, updateSystemUser, deleteSystemUser,
+    currencies, addCurrency, updateCurrency, deleteCurrency, defaultCurrencyId, setDefaultCurrency
   } = useInventory();
 
-  const [activeTab, setActiveTab] = useState<'company' | 'appearance' | 'users'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'appearance' | 'users' | 'currencies'>('company');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userFormData, setUserFormData] = useState<Omit<User, 'id'>>({ fullName: '', email: '', role: 'Operator' });
 
+  const [isCurrencyModalOpen, setIsCurrencyModalOpen] = useState(false);
+  const [editingCurrency, setEditingCurrency] = useState<Currency | null>(null);
+  const [currencyFormData, setCurrencyFormData] = useState<Omit<Currency, 'id'>>({ 
+    code: '', 
+    symbol: '', 
+    name: '', 
+    digits: 2,
+    exchangeRate: 1 
+  });
+
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
+
+  const localCurrency = currencies.find(c => c.id === companyInfo.localCurrencyId) || currencies[0];
 
   const handleCompanySubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,6 +42,7 @@ const SettingsPage: React.FC = () => {
       email: formData.get('email') as string,
       website: formData.get('website') as string,
       language: formData.get('language') as 'English' | 'Arabic',
+      localCurrencyId: formData.get('localCurrencyId') as string,
     };
     updateCompanyInfo(info);
     alert('Settings saved successfully!');
@@ -52,37 +66,43 @@ const SettingsPage: React.FC = () => {
 
   const handleUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingUser) {
-      updateSystemUser(editingUser.id, userFormData);
-    } else {
-      addSystemUser(userFormData);
-    }
+    if (editingUser) updateSystemUser(editingUser.id, userFormData);
+    else addSystemUser(userFormData);
     setIsUserModalOpen(false);
     setEditingUser(null);
     setUserFormData({ fullName: '', email: '', role: 'Operator' });
   };
 
+  const handleCurrencySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingCurrency) updateCurrency(editingCurrency.id, currencyFormData);
+    else addCurrency(currencyFormData);
+    setIsCurrencyModalOpen(false);
+    setEditingCurrency(null);
+    setCurrencyFormData({ code: '', symbol: '', name: '', digits: 2, exchangeRate: 1 });
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-white">
-          <h2 className="text-2xl font-bold text-gray-800">System Settings</h2>
+        <div className="p-8 border-b border-gray-100 bg-white">
+          <h2 className="text-3xl font-bold text-gray-800">System Settings</h2>
           <p className="text-gray-500 text-sm mt-1">Configure your business workspace and preferences</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100">
+        <div className="flex border-b border-gray-100 overflow-x-auto px-6">
           <button
             onClick={() => setActiveTab('company')}
-            className={`px-8 py-4 text-sm font-bold transition-all border-b-2 ${
+            className={`px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
               activeTab === 'company' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            🏢 Company Information
+            🏢 Company Info
           </button>
           <button
             onClick={() => setActiveTab('appearance')}
-            className={`px-8 py-4 text-sm font-bold transition-all border-b-2 ${
+            className={`px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
               activeTab === 'appearance' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -90,81 +110,52 @@ const SettingsPage: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-8 py-4 text-sm font-bold transition-all border-b-2 ${
+            className={`px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
               activeTab === 'users' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}
           >
-            👥 User Management
+            👥 Users
+          </button>
+          <button
+            onClick={() => setActiveTab('currencies')}
+            className={`px-6 py-4 text-sm font-bold transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${
+              activeTab === 'currencies' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            💰 Currencies
           </button>
         </div>
 
-        <div className="p-8">
+        <div className="p-10">
           {activeTab === 'company' && (
-            <form onSubmit={handleCompanySubmit} className="max-w-3xl space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Company Name</label>
-                  <input
-                    name="name"
-                    defaultValue={companyInfo.name}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                    required
-                  />
+            <form onSubmit={handleCompanySubmit} className="max-w-4xl space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Company Name</label>
+                  <input name="name" defaultValue={companyInfo.name} className="w-full px-5 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium transition-all" required />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Default Language</label>
-                  <select
-                    name="language"
-                    defaultValue={companyInfo.language}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                  >
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Default Language</label>
+                  <select name="language" defaultValue={companyInfo.language} className="w-full px-5 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium transition-all">
                     <option value="English">English</option>
                     <option value="Arabic">Arabic</option>
                   </select>
                 </div>
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Business Address</label>
-                  <textarea
-                    name="address"
-                    defaultValue={companyInfo.address}
-                    rows={2}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-                    required
-                  />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Default Local Currency</label>
+                  <select name="localCurrencyId" defaultValue={companyInfo.localCurrencyId} className="w-full px-5 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium transition-all">
+                    {currencies.map(c => <option key={c.id} value={c.id}>{c.name} ({c.symbol})</option>)}
+                  </select>
+                  <p className="text-[10px] text-gray-400 italic">This is the base currency for all accounting and reports.</p>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Phone Number</label>
-                  <input
-                    name="phone"
-                    defaultValue={companyInfo.phone}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Official Email</label>
-                  <input
-                    name="email"
-                    type="email"
-                    defaultValue={companyInfo.email}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Website URL</label>
-                  <input
-                    name="website"
-                    defaultValue={companyInfo.website}
-                    placeholder="https://..."
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Business Address</label>
+                  <textarea name="address" defaultValue={companyInfo.address} rows={3} className="w-full px-5 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-medium transition-all" required />
                 </div>
               </div>
-              <div className="pt-4">
-                <button
-                  type="submit"
-                  className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all"
-                >
-                  Save Company Info
+              <div className="pt-6">
+                <button type="submit" className="px-10 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-[0_10px_20px_-5px_rgba(79,70,229,0.3)] transition-all active:scale-[0.98]">
+                  Save Info
                 </button>
               </div>
             </form>
@@ -173,87 +164,14 @@ const SettingsPage: React.FC = () => {
           {activeTab === 'appearance' && (
             <div className="max-w-4xl space-y-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                {/* Logo Section */}
                 <div className="space-y-4">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="font-bold text-gray-800">Company Logo</h3>
-                    <p className="text-xs text-gray-400">Displayed on invoices and dashboard (Max 5MB)</p>
-                  </div>
+                  <h3 className="font-bold text-gray-800">Company Logo</h3>
                   <div className="aspect-video bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden relative group">
-                    {logo ? (
-                      <>
-                        <img src={logo} alt="Logo Preview" className="max-h-full object-contain" />
-                        <button 
-                          onClick={() => updateLogo(null)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-100 text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                      </>
-                    ) : (
-                      <div className="text-center space-y-2">
-                        <svg className="w-12 h-12 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <p className="text-xs text-gray-400 font-medium">No Logo Uploaded</p>
-                      </div>
-                    )}
+                    {logo ? <img src={logo} alt="Logo" className="max-h-full object-contain p-4" /> : <p className="text-xs text-gray-400">No Logo</p>}
                   </div>
-                  <input 
-                    type="file" 
-                    ref={logoInputRef} 
-                    className="hidden" 
-                    accept="image/png, image/jpeg" 
-                    onChange={(e) => handleFileUpload(e, 'logo')} 
-                  />
-                  <button 
-                    onClick={() => logoInputRef.current?.click()}
-                    className="w-full py-2.5 bg-gray-50 text-gray-700 font-bold text-sm rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors"
-                  >
-                    {logo ? 'Change Logo' : 'Upload Logo'}
-                  </button>
+                  <input type="file" ref={logoInputRef} className="hidden" accept="image/png, image/jpeg" onChange={(e) => handleFileUpload(e, 'logo')} />
+                  <button onClick={() => logoInputRef.current?.click()} className="w-full py-3 bg-gray-50 text-gray-700 font-bold text-sm rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors">Change Logo</button>
                 </div>
-
-                {/* Favicon Section */}
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="font-bold text-gray-800">Browser Favicon</h3>
-                    <p className="text-xs text-gray-400">Small icon in browser tab (Max 5MB)</p>
-                  </div>
-                  <div className="aspect-square w-32 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden mx-auto relative group">
-                    {favicon ? (
-                      <>
-                        <img src={favicon} alt="Favicon Preview" className="w-16 h-16 object-contain" />
-                        <button 
-                          onClick={() => updateFavicon(null)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-100 text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                      </>
-                    ) : (
-                      <div className="text-center">
-                        <svg className="w-8 h-8 text-gray-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
-                      </div>
-                    )}
-                  </div>
-                  <input 
-                    type="file" 
-                    ref={faviconInputRef} 
-                    className="hidden" 
-                    accept="image/png, image/jpeg" 
-                    onChange={(e) => handleFileUpload(e, 'favicon')} 
-                  />
-                  <button 
-                    onClick={() => faviconInputRef.current?.click()}
-                    className="w-full py-2.5 bg-gray-50 text-gray-700 font-bold text-sm rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors"
-                  >
-                    {favicon ? 'Change Favicon' : 'Upload Favicon'}
-                  </button>
-                </div>
-              </div>
-              <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                  <strong>Pro Tip:</strong> Using a high-contrast PNG with a transparent background works best for both logo and favicon. Favicon updates may take a moment to reflect in your browser tab.
-                </p>
               </div>
             </div>
           )}
@@ -261,26 +179,14 @@ const SettingsPage: React.FC = () => {
           {activeTab === 'users' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <div className="flex flex-col">
-                   <h3 className="font-bold text-gray-800">System Users</h3>
-                   <p className="text-xs text-gray-400">Manage administrative and operator access</p>
-                </div>
-                <button
-                  onClick={() => { setEditingUser(null); setUserFormData({ fullName: '', email: '', role: 'Operator' }); setIsUserModalOpen(true); }}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
-                  Add User
-                </button>
+                <h3 className="font-bold text-gray-800">System Users</h3>
+                <button onClick={() => { setEditingUser(null); setUserFormData({ fullName: '', email: '', role: 'Operator' }); setIsUserModalOpen(true); }} className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 shadow-md">Add User</button>
               </div>
-
               <div className="overflow-x-auto border border-gray-100 rounded-2xl">
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
                       <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</th>
                       <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                     </tr>
                   </thead>
@@ -288,26 +194,82 @@ const SettingsPage: React.FC = () => {
                     {systemUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-bold text-gray-800">{user.fullName}</td>
-                        <td className="px-6 py-4 text-gray-500 text-sm">{user.email}</td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button onClick={() => { setEditingUser(user); setUserFormData({ fullName: user.fullName, email: user.email, role: user.role }); setIsUserModalOpen(true); }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-colors">Edit</button>
+                          <button onClick={() => deleteSystemUser(user.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg font-bold text-sm transition-colors">Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'currencies' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                   <h3 className="font-bold text-gray-800">Currencies</h3>
+                   <p className="text-xs text-gray-400 mt-0.5">Manage active currencies and set your default unit</p>
+                </div>
+                <button 
+                  onClick={() => { setEditingCurrency(null); setCurrencyFormData({ code: '', symbol: '', name: '', digits: 2, exchangeRate: 1 }); setIsCurrencyModalOpen(true); }}
+                  className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 shadow-md"
+                >
+                  Add Currency
+                </button>
+              </div>
+
+              <div className="overflow-x-auto border border-gray-100 rounded-2xl">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Default</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Name & Code</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Symbol</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Exchange Rate</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {currencies.map((curr) => (
+                      <tr key={curr.id} className={`hover:bg-gray-50 transition-colors ${curr.id === defaultCurrencyId ? 'bg-indigo-50/20' : ''}`}>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
-                            user.role === 'Administrator' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            {user.role}
-                          </span>
+                          <input 
+                            type="radio" 
+                            name="default_currency" 
+                            checked={curr.id === defaultCurrencyId} 
+                            onChange={() => setDefaultCurrency(curr.id)} 
+                            className="w-4 h-4 text-indigo-600 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-gray-800">{curr.name}</span>
+                            <span className="text-xs text-gray-400 font-mono">{curr.code}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-center font-bold text-lg text-indigo-600">{curr.symbol}</td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex flex-col items-center">
+                             <span className="font-bold text-gray-600">{curr.exchangeRate}</span>
+                             <span className="text-[10px] text-gray-400">1 {curr.code} = {curr.exchangeRate} {localCurrency.code}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
                           <button 
-                            onClick={() => { setEditingUser(user); setUserFormData({ fullName: user.fullName, email: user.email, role: user.role }); setIsUserModalOpen(true); }}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            onClick={() => { setEditingCurrency(curr); setCurrencyFormData({ code: curr.code, symbol: curr.symbol, name: curr.name, digits: curr.digits, exchangeRate: curr.exchangeRate }); setIsCurrencyModalOpen(true); }}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg font-bold text-sm transition-colors"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                            Edit
                           </button>
                           <button 
-                            onClick={() => deleteSystemUser(user.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            onClick={() => deleteCurrency(curr.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-30 font-bold text-sm transition-colors"
+                            disabled={currencies.length <= 1}
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            Delete
                           </button>
                         </td>
                       </tr>
@@ -320,61 +282,144 @@ const SettingsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Currency Modal */}
+      {isCurrencyModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <span>💰</span> {editingCurrency ? 'Edit Currency' : 'Add New Currency'}
+                </h2>
+                <button onClick={() => setIsCurrencyModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+             </div>
+             <form onSubmit={handleCurrencySubmit} className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Currency Name</label>
+                  <input 
+                    required 
+                    value={currencyFormData.name} 
+                    onChange={(e) => setCurrencyFormData({ ...currencyFormData, name: e.target.value })} 
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" 
+                    placeholder="e.g. Jordanian Dinar" 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">ISO Code</label>
+                    <input 
+                      required 
+                      value={currencyFormData.code} 
+                      onChange={(e) => setCurrencyFormData({ ...currencyFormData, code: e.target.value.toUpperCase() })} 
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" 
+                      placeholder="JOD" 
+                      maxLength={3} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Symbol</label>
+                    <input 
+                      required 
+                      value={currencyFormData.symbol} 
+                      onChange={(e) => setCurrencyFormData({ ...currencyFormData, symbol: e.target.value })} 
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" 
+                      placeholder="JD" 
+                      maxLength={5} 
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Decimal Digits</label>
+                    <input 
+                      required 
+                      type="number" 
+                      min="0" 
+                      max="4" 
+                      value={currencyFormData.digits} 
+                      onChange={(e) => setCurrencyFormData({ ...currencyFormData, digits: parseInt(e.target.value) || 0 })} 
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" 
+                      placeholder="3" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Exchange Rate to {localCurrency.code}</label>
+                    <input 
+                      required 
+                      type="number" 
+                      step="0.000001"
+                      min="0"
+                      value={currencyFormData.exchangeRate} 
+                      onChange={(e) => setCurrencyFormData({ ...currencyFormData, exchangeRate: parseFloat(e.target.value) || 1 })} 
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" 
+                      placeholder="1.0" 
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 italic">1 {currencyFormData.code || 'UNIT'} = {currencyFormData.exchangeRate} {localCurrency.symbol}</p>
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setIsCurrencyModalOpen(false)} className="flex-1 py-4 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-[0.98]">
+                    {editingCurrency ? 'Update' : 'Save'}
+                  </button>
+                </div>
+             </form>
+          </div>
+        </div>
+      )}
+
       {/* User Modal */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <h2 className="text-lg font-bold text-gray-800">{editingUser ? 'Edit User' : 'Add New User'}</h2>
+             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <span>👤</span> {editingUser ? 'Edit System User' : 'Add New User'}
+                </h2>
                 <button onClick={() => setIsUserModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
              </div>
-             <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Full Name</label>
-                  <input
-                    required
-                    value={userFormData.fullName}
-                    onChange={(e) => setUserFormData({ ...userFormData, fullName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+             <form onSubmit={handleUserSubmit} className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Full Name</label>
+                  <input 
+                    required 
+                    value={userFormData.fullName} 
+                    onChange={(e) => setUserFormData({ ...userFormData, fullName: e.target.value })} 
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" 
+                    placeholder="e.g. Ahmad Khaled"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Email</label>
-                  <input
-                    required
-                    type="email"
-                    value={userFormData.email}
-                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Email Address</label>
+                  <input 
+                    required 
+                    type="email" 
+                    value={userFormData.email} 
+                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })} 
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" 
+                    placeholder="user@company.com"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-500 uppercase">System Role</label>
-                  <select
-                    value={userFormData.role}
-                    onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">User Role</label>
+                  <select 
+                    required 
+                    value={userFormData.role} 
+                    onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })} 
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
                   >
                     <option value="Administrator">Administrator</option>
                     <option value="Operator">Operator</option>
                     <option value="Viewer">Viewer</option>
                   </select>
                 </div>
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsUserModalOpen(false)}
-                    className="flex-1 py-2.5 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-100"
-                  >
-                    {editingUser ? 'Save Changes' : 'Create User'}
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setIsUserModalOpen(false)} className="flex-1 py-4 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-[0.98]">
+                    {editingUser ? 'Update' : 'Confirm'}
                   </button>
                 </div>
              </form>

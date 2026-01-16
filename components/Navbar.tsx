@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { View } from '../types';
+import { useInventory } from '../context/InventoryContext';
 
 interface NavbarProps {
   currentView: View;
@@ -9,6 +10,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { companyInfo, logo } = useInventory();
 
   const navItems: { id: View; label: string; icon: string }[] = [
     { id: 'items', label: 'Items', icon: '📦' },
@@ -25,16 +27,25 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
-      {/* Sidebar Header */}
-      <div className="h-16 flex items-center px-6 border-b border-gray-100 shrink-0 overflow-hidden">
-        <div className={`flex items-center gap-3 transition-opacity duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
-          <span className="bg-indigo-600 text-white p-1.5 rounded-lg text-xs font-black">IM</span>
-          <span className="text-lg font-bold text-indigo-600 tracking-tight whitespace-nowrap">
-            InventoryMaster
-          </span>
+      {/* Sidebar Top: Logo & Company Name */}
+      <div className={`flex flex-col items-center shrink-0 transition-all duration-300 border-b border-gray-100 ${isCollapsed ? 'py-4 h-20' : 'py-10 h-52'}`}>
+        <div className={`transition-all duration-300 flex items-center justify-center rounded-2xl bg-white border border-indigo-100 overflow-hidden shadow-sm ${isCollapsed ? 'w-10 h-10' : 'w-24 h-24'}`}>
+          {logo ? (
+            <img src={logo} alt="Company Logo" className="w-full h-full object-contain p-2" />
+          ) : (
+            <span className={`font-black text-indigo-600 ${isCollapsed ? 'text-xs' : 'text-3xl'}`}>
+              {companyInfo.name.charAt(0).toUpperCase()}
+            </span>
+          )}
         </div>
-        {isCollapsed && (
-           <span className="mx-auto bg-indigo-600 text-white p-1.5 rounded-lg text-xs font-black">IM</span>
+        
+        {!isCollapsed && (
+          <div className="mt-5 px-4 text-center animate-in fade-in slide-in-from-top-2 duration-500 flex flex-col items-center">
+            <h1 className="text-xs font-black text-gray-800 uppercase tracking-widest line-clamp-2">
+              {companyInfo.name}
+            </h1>
+            <div className="mt-2 h-1 w-10 bg-indigo-600 rounded-full"></div>
+          </div>
         )}
       </div>
 
@@ -47,13 +58,13 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
             title={isCollapsed ? item.label : ''}
             className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all relative group ${
               currentView === item.id
-                ? 'bg-indigo-50 text-indigo-700 font-bold'
+                ? 'bg-indigo-50 text-indigo-700 font-bold shadow-sm'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
             }`}
           >
             <span className="text-xl shrink-0 w-8 text-center">{item.icon}</span>
             <span 
-              className={`whitespace-nowrap transition-all duration-300 overflow-hidden ${
+              className={`whitespace-nowrap transition-all duration-300 overflow-hidden text-sm ${
                 isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
               }`}
             >
@@ -62,7 +73,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
             
             {/* Tooltip for collapsed state */}
             {isCollapsed && (
-              <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+              <div className="absolute left-full ml-4 px-2 py-1 bg-gray-900 text-white text-[10px] font-bold uppercase rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
                 {item.label}
               </div>
             )}

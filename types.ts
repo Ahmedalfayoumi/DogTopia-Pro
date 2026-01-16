@@ -39,6 +39,16 @@ export interface CompanyInfo {
   email: string;
   website: string;
   language: 'English' | 'Arabic';
+  localCurrencyId: string;
+}
+
+export interface Currency {
+  id: string;
+  code: string;
+  symbol: string;
+  name: string;
+  digits: number;
+  exchangeRate: number; // Rate relative to the local base currency
 }
 
 export interface User {
