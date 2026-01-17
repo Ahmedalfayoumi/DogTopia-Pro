@@ -12,6 +12,7 @@ type SortKey = 'id' | 'name' | 'contactPerson' | 'phone' | 'email' | 'address';
 const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
   const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
@@ -60,12 +61,28 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (modalMode === 'view') return;
+    
     if (editingId) {
       updateSupplier(editingId, formData);
     } else {
       addSupplier({ ...formData, type: filterType });
     }
     closeModal();
+  };
+
+  const handleView = (supplier: Supplier) => {
+    setEditingId(supplier.id);
+    setFormData({
+      name: supplier.name,
+      contactPerson: supplier.contactPerson,
+      phone: supplier.phone,
+      email: supplier.email,
+      address: supplier.address,
+      type: supplier.type,
+    });
+    setModalMode('view');
+    setIsModalOpen(true);
   };
 
   const handleEdit = (supplier: Supplier) => {
@@ -79,6 +96,7 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
       address: supplier.address,
       type: supplier.type,
     });
+    setModalMode('edit');
     setIsModalOpen(true);
   };
 
@@ -92,18 +110,22 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
       address: '',
       type: filterType,
     });
+    setModalMode('create');
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
+    setModalMode('create');
   };
 
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortConfig?.key !== column) return <span className="ml-1 opacity-20">↕</span>;
     return sortConfig.direction === 'asc' ? <span className="ml-1 text-indigo-600">↑</span> : <span className="ml-1 text-indigo-600">↓</span>;
   };
+
+  const isReadOnly = modalMode === 'view';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -113,7 +135,7 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                {editingId ? '✏️ Edit Supplier' : filterType === 'Local' ? '🏠 Add Local Supplier' : '🌍 Add Overseas Supplier'}
+                {modalMode === 'view' ? '🔍 View Supplier Details' : editingId ? '✏️ Edit Supplier' : filterType === 'Local' ? '🏠 Add Local Supplier' : '🌍 Add Overseas Supplier'}
               </h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,9 +149,10 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Supplier Name</label>
                 <input
                   required
+                  disabled={isReadOnly}
                   type="text"
                   placeholder="e.g. Acme Corporation"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -138,9 +161,10 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Contact Person</label>
                 <input
                   required
+                  disabled={isReadOnly}
                   type="text"
                   placeholder="e.g. John Smith"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   value={formData.contactPerson}
                   onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
                 />
@@ -150,9 +174,10 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Phone</label>
                   <input
                     required
+                    disabled={isReadOnly}
                     type="tel"
                     placeholder="+1 234 567"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
@@ -161,9 +186,10 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Email</label>
                   <input
                     required
+                    disabled={isReadOnly}
                     type="email"
                     placeholder="supplier@example.com"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all disabled:bg-gray-50 disabled:text-gray-500"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
@@ -173,9 +199,10 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Address</label>
                 <textarea
                   required
+                  disabled={isReadOnly}
                   placeholder="Company HQ Address"
                   rows={2}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none disabled:bg-gray-50 disabled:text-gray-500"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
@@ -187,14 +214,16 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
                   onClick={closeModal}
                   className="flex-1 px-6 py-3 border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {isReadOnly ? 'Close' : 'Cancel'}
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg"
-                >
-                  {editingId ? 'Update Supplier' : 'Add Supplier'}
-                </button>
+                {!isReadOnly && (
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg"
+                  >
+                    {editingId ? 'Update Supplier' : 'Add Supplier'}
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -297,28 +326,40 @@ const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
                       {supplier.address}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      {!supplier.isDefault && (
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => handleEdit(supplier)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Edit Supplier"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => { if(window.confirm('Delete this supplier?')) deleteSupplier(supplier.id) }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete Supplier"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleView(supplier)}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="View Details"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        </button>
+                        {!supplier.isDefault && (
+                          <>
+                            <button
+                              onClick={() => handleEdit(supplier)}
+                              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Edit Supplier"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => { if(window.confirm('Delete this supplier?')) deleteSupplier(supplier.id) }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Supplier"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
