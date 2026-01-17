@@ -5,7 +5,8 @@ export interface Item {
   barcode: string;
   description: string;
   unitPrice: number;
-  stock: number;
+  openingStock: number; // The stock quantity when the item was first registered
+  stock: number; // The real-time available quantity
   purchaseUnit: string;
   storageUnit: string;
   conversionPurchaseToStorage: number;
@@ -59,8 +60,14 @@ export interface PaymentType {
 
 export interface User {
   id: string;
-  fullName: string;
+  firstName: string;
+  middleName: string;
+  thirdName: string;
+  lastName: string;
   email: string;
+  mobile: string;
+  username: string;
+  password?: string;
   role: string;
 }
 
@@ -98,6 +105,25 @@ export interface Sale {
   paymentTypeId: string;
 }
 
+export interface InventoryAuditItem {
+  itemId: string;
+  name: string;
+  barcode: string;
+  systemQty: number;
+  physicalQty: number;
+  difference: number;
+  impactValue: number;
+  unitPrice: number;
+}
+
+export interface InventoryRecord {
+  id: string;
+  date: string;
+  status: 'Draft' | 'Adjusted';
+  items: InventoryAuditItem[];
+  totalImpact: number;
+}
+
 export interface ThemeConfig {
   colors: string[]; // Array of colors, index 0 is primary, 1 is secondary
   fontFamily: string;
@@ -105,6 +131,8 @@ export interface ThemeConfig {
 
 export type View = 
   | 'items' 
+  | 'items_list'
+  | 'inventory_count'
   | 'inventory' 
   | 'purchases' 
   | 'purchases_local' 
@@ -116,5 +144,5 @@ export type View =
   | 'settings_company' 
   | 'settings_appearance' 
   | 'settings_users' 
-  | 'settings_currencies'
+  | 'settings_currencies' 
   | 'settings_payments';

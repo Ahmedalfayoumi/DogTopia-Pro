@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Item, Purchase, Sale, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig } from '../types';
+import { Item, Purchase, Sale, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig, InventoryRecord } from '../types';
 
 interface InventoryContextType {
   items: Item[];
@@ -8,6 +8,7 @@ interface InventoryContextType {
   sales: Sale[];
   suppliers: Supplier[];
   clients: Client[];
+  inventoryAuditRecords: InventoryRecord[];
   companyInfo: CompanyInfo;
   systemUsers: User[];
   currencies: Currency[];
@@ -17,15 +18,19 @@ interface InventoryContextType {
   logo: string | null;
   favicon: string | null;
   themeConfig: ThemeConfig;
-  addItem: (item: Omit<Item, 'id'>) => Item;
+  addItem: (item: Omit<Item, 'id' | 'stock'>) => Item;
   updateItem: (id: string, item: Partial<Item>) => void;
   deleteItem: (id: string) => void;
+  bulkUpdateItemStock: (updates: { itemId: string, newStock: number }[]) => void;
   addSupplier: (supplier: Omit<Supplier, 'id' | 'isDefault'>) => void;
   updateSupplier: (id: string, supplier: Partial<Supplier>) => void;
   deleteSupplier: (id: string) => void;
   addClient: (client: Omit<Client, 'id' | 'isDefault'>) => void;
   updateClient: (id: string, client: Partial<Client>) => void;
   deleteClient: (id: string) => void;
+  addInventoryAuditRecord: (record: Omit<InventoryRecord, 'id'>) => InventoryRecord;
+  updateInventoryAuditRecord: (id: string, record: Partial<InventoryRecord>) => void;
+  deleteInventoryAuditRecord: (id: string) => void;
   recordPurchase: (purchase: Omit<Purchase, 'id'>) => Purchase;
   updatePurchase: (id: string, purchase: Purchase) => void;
   deletePurchase: (id: string) => void;
@@ -85,47 +90,51 @@ const INITIAL_THEME: ThemeConfig = {
 };
 
 const SEED_ITEMS: Item[] = [
-  { id: 'i-1', name: 'iPhone 15 Pro', barcode: '1942538123', description: 'Apple Smartphone 256GB', unitPrice: 950, stock: 42, purchaseUnit: 'Box', storageUnit: 'Pack', conversionPurchaseToStorage: 1, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
-  { id: 'i-2', name: 'MacBook Air M2', barcode: '1942530044', description: 'Apple Laptop 13-inch', unitPrice: 1150, stock: 15, purchaseUnit: 'Box', storageUnit: 'Unit', conversionPurchaseToStorage: 1, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
-  { id: 'i-3', name: 'Logitech MX Master 3S', barcode: '0978551703', description: 'Wireless Performance Mouse', unitPrice: 85, stock: 85, purchaseUnit: 'Carton', storageUnit: 'Box', conversionPurchaseToStorage: 10, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
-  { id: 'i-4', name: 'Samsung 27" Odyssey G7', barcode: '8806090514', description: 'Curved Gaming Monitor', unitPrice: 450, stock: 24, purchaseUnit: 'Pallet', storageUnit: 'Box', conversionPurchaseToStorage: 5, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
-  { id: 'i-5', name: 'Keychron K2 V2', barcode: '4895248805', description: 'Mechanical Wireless Keyboard', unitPrice: 95, stock: 60, purchaseUnit: 'Box', storageUnit: 'Unit', conversionPurchaseToStorage: 1, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
+  { id: 'i-1', name: 'iPhone 15 Pro', barcode: '1942538123', description: 'Apple Smartphone 256GB', unitPrice: 950, openingStock: 30, stock: 42, purchaseUnit: 'Box', storageUnit: 'Pack', conversionPurchaseToStorage: 1, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
+  { id: 'i-2', name: 'MacBook Air M2', barcode: '1942530044', description: 'Apple Laptop 13-inch', unitPrice: 1150, openingStock: 10, stock: 15, purchaseUnit: 'Box', storageUnit: 'Unit', conversionPurchaseToStorage: 1, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
+  { id: 'i-3', name: 'Logitech MX Master 3S', barcode: '0978551703', description: 'Wireless Performance Mouse', unitPrice: 85, openingStock: 70, stock: 85, purchaseUnit: 'Carton', storageUnit: 'Box', conversionPurchaseToStorage: 10, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
+  { id: 'i-4', name: 'Samsung 27" Odyssey G7', barcode: '8806090514', description: 'Curved Gaming Monitor', unitPrice: 450, openingStock: 20, stock: 24, purchaseUnit: 'Pallet', storageUnit: 'Box', conversionPurchaseToStorage: 5, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
+  { id: 'i-5', name: 'Keychron K2 V2', barcode: '4895248805', description: 'Mechanical Wireless Keyboard', unitPrice: 95, openingStock: 50, stock: 60, purchaseUnit: 'Box', storageUnit: 'Unit', conversionPurchaseToStorage: 1, sellingUnit: 'Piece', conversionStorageToSelling: 1 },
 ];
 
-const DEFAULT_SUPPLIER: Supplier = { id: 'Sup-0001', name: 'Cash Purchase', contactPerson: 'N/A', phone: 'N/A', email: 'N/A', address: 'N/A', isDefault: true };
+const SEED_AUDITS: InventoryRecord[] = [
+  {
+    id: 'AUD-001',
+    date: '2024-01-15',
+    status: 'Adjusted',
+    totalImpact: -180,
+    items: [
+      { itemId: 'i-1', name: 'iPhone 15 Pro', barcode: '1942538123', systemQty: 45, physicalQty: 42, difference: -3, impactValue: -2850, unitPrice: 950 }
+    ]
+  },
+  {
+    id: 'AUD-002',
+    date: '2024-02-10',
+    status: 'Adjusted',
+    totalImpact: 1150,
+    items: [
+      { itemId: 'i-2', name: 'MacBook Air M2', barcode: '1942530044', systemQty: 14, physicalQty: 15, difference: 1, impactValue: 1150, unitPrice: 1150 }
+    ]
+  },
+  {
+    id: 'AUD-003',
+    date: '2024-03-05',
+    status: 'Draft',
+    totalImpact: 0,
+    items: [
+      { itemId: 'i-3', name: 'Logitech MX Master 3S', barcode: '0978551703', systemQty: 85, physicalQty: 85, difference: 0, impactValue: 0, unitPrice: 85 }
+    ]
+  }
+];
+
 const SEED_SUPPLIERS: Supplier[] = [
-  DEFAULT_SUPPLIER,
-  { id: 'Sup-0002', name: 'TechDistro Jordan', contactPerson: 'Zaid Omar', phone: '079-111-2222', email: 'sales@techdistro.jo', address: 'Amman, Gardens St.' },
-  { id: 'Sup-0003', name: 'MegaParts Ltd', contactPerson: 'Laila H.', phone: '077-333-4444', email: 'info@megaparts.com', address: 'Zarqa Free Zone' },
-  { id: 'Sup-0004', name: 'Global Supply Chain', contactPerson: 'Mark Wilson', phone: '+44-20-1234', email: 'mark@globalsupply.com', address: 'London, UK' },
-  { id: 'Sup-0005', name: 'Elite Hardware', contactPerson: 'Rami K.', phone: '06-555-6666', email: 'rami@elite.jo', address: 'Irbid, City Center' },
-  { id: 'Sup-0006', name: 'Prime Components', contactPerson: 'Sara T.', phone: '078-777-8888', email: 'sara@prime.jo', address: 'Aqaba, Port Area' },
+  { id: 'Sup-0001', name: 'Cash Purchase', contactPerson: 'N/A', phone: 'N/A', email: 'N/A', address: 'N/A', isDefault: true },
+  { id: 'Sup-0002', name: 'TechDistro Jordan', contactPerson: 'Zaid Omar', phone: '079-111-2222', email: 'sales@techdistro.jo', address: 'Amman, Gardens St.' }
 ];
 
-const DEFAULT_CLIENT: Client = { id: 'Sales-0001', name: 'Cash Sales', phone: 'N/A', email: 'N/A', address: 'N/A', isDefault: true };
 const SEED_CLIENTS: Client[] = [
-  DEFAULT_CLIENT,
-  { id: 'Sales-0002', name: 'Ahmad Corp Solutions', phone: '079-555-1212', email: 'ahmad@corp.jo', address: 'Abdoun, Amman' },
-  { id: 'Sales-0003', name: 'Sarah Design Studio', phone: '077-888-9999', email: 'sarah@studio.jo', address: 'Weibdeh, Amman' },
-  { id: 'Sales-0004', name: 'TechHub Coworking', phone: '06-444-3333', email: 'admin@techhub.jo', address: 'Sweifieh Village' },
-  { id: 'Sales-0005', name: 'Jordan University IT', phone: '06-535-5000', email: 'it@ju.edu.jo', address: 'University St, Amman' },
-  { id: 'Sales-0006', name: 'Future Systems LLC', phone: '078-222-3344', email: 'sales@future.com', address: 'Khalda, Amman' },
-];
-
-const SEED_PURCHASES: Purchase[] = [
-  { id: 'PUR-0001', type: 'Local', supplierId: 'Sup-0002', supplierName: 'TechDistro Jordan', date: '2023-12-01', grandTotal: 9500, paymentTypeId: 'pt-1', items: [{ itemId: 'i-1', quantity: 10, unitPrice: 950, total: 9500 }] },
-  { id: 'PUR-0002', type: 'Local', supplierId: 'Sup-0003', supplierName: 'MegaParts Ltd', date: '2023-12-05', grandTotal: 5750, paymentTypeId: 'pt-4', items: [{ itemId: 'i-2', quantity: 5, unitPrice: 1150, total: 5750 }] },
-  { id: 'PUR-0003', type: 'Import', supplierId: 'Sup-0004', supplierName: 'Global Supply Chain', date: '2023-12-10', grandTotal: 1050, paymentTypeId: 'pt-2', items: [{ itemId: 'i-3', quantity: 10, unitPrice: 85, total: 850 }], expenses: [{ description: 'Shipping', amount: 200 }] },
-  { id: 'PUR-0004', type: 'Local', supplierId: 'Sup-0005', supplierName: 'Elite Hardware', date: '2023-12-15', grandTotal: 2250, paymentTypeId: 'pt-4', items: [{ itemId: 'i-4', quantity: 5, unitPrice: 450, total: 2250 }] },
-  { id: 'PUR-0005', type: 'Local', supplierId: 'Sup-0006', supplierName: 'Prime Components', date: '2023-12-20', grandTotal: 950, paymentTypeId: 'pt-1', items: [{ itemId: 'i-5', quantity: 10, unitPrice: 95, total: 950 }] },
-];
-
-const SEED_SALES: Sale[] = [
-  { id: 'INV-0001', clientId: 'Sales-0002', customerName: 'Ahmad Corp Solutions', date: '2024-01-05', grandTotal: 1050, paymentTypeId: 'pt-1', items: [{ itemId: 'i-1', quantity: 1, unitPrice: 1050, total: 1050 }] },
-  { id: 'INV-0002', clientId: 'Sales-0003', customerName: 'Sarah Design Studio', date: '2024-01-10', grandTotal: 1250, paymentTypeId: 'pt-4', items: [{ itemId: 'i-2', quantity: 1, unitPrice: 1250, total: 1250 }] },
-  { id: 'INV-0003', clientId: 'Sales-0004', customerName: 'TechHub Coworking', date: '2024-01-15', grandTotal: 200, paymentTypeId: 'pt-3', items: [{ itemId: 'i-3', quantity: 2, unitPrice: 100, total: 200 }] },
-  { id: 'INV-0004', clientId: 'Sales-0005', customerName: 'Jordan University IT', date: '2024-01-20', grandTotal: 1500, paymentTypeId: 'pt-4', items: [{ itemId: 'i-4', quantity: 3, unitPrice: 500, total: 1500 }] },
-  { id: 'INV-0005', clientId: 'Sales-0006', customerName: 'Future Systems LLC', date: '2024-01-25', grandTotal: 240, paymentTypeId: 'pt-2', items: [{ itemId: 'i-5', quantity: 2, unitPrice: 120, total: 240 }] },
+  { id: 'Sales-0001', name: 'Cash Sales', phone: 'N/A', email: 'N/A', address: 'N/A', isDefault: true },
+  { id: 'Sales-0002', name: 'Ahmad Corp Solutions', phone: '079-555-1212', email: 'ahmad@corp.jo', address: 'Abdoun, Amman' }
 ];
 
 const INITIAL_COMPANY: CompanyInfo = {
@@ -154,18 +163,19 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return saved ? JSON.parse(saved) : SEED_CLIENTS;
   });
 
+  const [inventoryAuditRecords, setInventoryAuditRecords] = useState<InventoryRecord[]>(() => {
+    const saved = localStorage.getItem('inv_audits');
+    return saved ? JSON.parse(saved) : SEED_AUDITS;
+  });
+
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
     const saved = localStorage.getItem('inv_purchases');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.map((p: any) => ({ ...p, type: p.type || 'Local' }));
-    }
-    return SEED_PURCHASES;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [sales, setSales] = useState<Sale[]>(() => {
     const saved = localStorage.getItem('inv_sales');
-    return saved ? JSON.parse(saved) : SEED_SALES;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(() => {
@@ -175,19 +185,22 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [systemUsers, setSystemUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('inv_users');
-    return saved ? JSON.parse(saved) : [{ id: 'u-1', fullName: 'System Admin', email: 'admin@system.com', role: 'Administrator' }];
+    return saved ? JSON.parse(saved) : [{ 
+      id: 'u-1', 
+      firstName: 'System', 
+      middleName: '', 
+      thirdName: '', 
+      lastName: 'Admin', 
+      email: 'admin@system.com', 
+      mobile: '000000000',
+      username: 'admin',
+      role: 'Super Admin' 
+    }];
   });
 
   const [currencies, setCurrencies] = useState<Currency[]>(() => {
     const saved = localStorage.getItem('inv_currencies');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.map((c: any) => ({
-        ...c,
-        exchangeRate: c.exchangeRate !== undefined ? c.exchangeRate : 1
-      }));
-    }
-    return SEED_CURRENCIES;
+    return saved ? JSON.parse(saved) : SEED_CURRENCIES;
   });
 
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>(() => {
@@ -209,20 +222,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => {
     const saved = localStorage.getItem('inv_theme');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (!parsed.colors) {
-        parsed.colors = [parsed.primaryColor || '#4f46e5', '#10b981'];
-        delete parsed.primaryColor;
-      }
-      return parsed;
-    }
-    return INITIAL_THEME;
+    return saved ? JSON.parse(saved) : INITIAL_THEME;
   });
 
   useEffect(() => localStorage.setItem('inv_items', JSON.stringify(items)), [items]);
   useEffect(() => localStorage.setItem('inv_suppliers', JSON.stringify(suppliers)), [suppliers]);
   useEffect(() => localStorage.setItem('inv_clients', JSON.stringify(clients)), [clients]);
+  useEffect(() => localStorage.setItem('inv_audits', JSON.stringify(inventoryAuditRecords)), [inventoryAuditRecords]);
   useEffect(() => localStorage.setItem('inv_purchases', JSON.stringify(purchases)), [purchases]);
   useEffect(() => localStorage.setItem('inv_sales', JSON.stringify(sales)), [sales]);
   useEffect(() => localStorage.setItem('inv_company', JSON.stringify(companyInfo)), [companyInfo]);
@@ -233,67 +239,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => localStorage.setItem('inv_default_payment', defaultPaymentTypeId), [defaultPaymentTypeId]);
   useEffect(() => localStorage.setItem('inv_theme', JSON.stringify(themeConfig)), [themeConfig]);
 
-  useEffect(() => {
-    if (logo) localStorage.setItem('inv_logo', logo);
-    else localStorage.removeItem('inv_logo');
-  }, [logo]);
-
-  useEffect(() => {
-    if (favicon) {
-      localStorage.setItem('inv_favicon', favicon);
-      const link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
-      if (link) link.href = favicon;
-      else {
-        const newLink = document.createElement('link');
-        newLink.rel = 'icon';
-        newLink.href = favicon;
-        document.head.appendChild(newLink);
-      }
-    } else {
-      localStorage.removeItem('inv_favicon');
-    }
-  }, [favicon]);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const styleId = 'dynamic-theme-overrides';
-    let styleTag = document.getElementById(styleId) as HTMLStyleElement;
-
-    if (!styleTag) {
-      styleTag = document.createElement('style');
-      styleTag.id = styleId;
-      document.head.appendChild(styleTag);
-    }
-
-    const primaryColor = themeConfig.colors[0] || '#4f46e5';
-    const secondaryColor = themeConfig.colors[1] || '#10b981';
-
-    styleTag.innerHTML = `
-      :root {
-        --primary-color: ${primaryColor};
-        --primary-light: ${primaryColor}15; 
-        --secondary-color: ${secondaryColor};
-        --secondary-light: ${secondaryColor}15;
-      }
-      body {
-        font-family: '${themeConfig.fontFamily}', sans-serif !important;
-      }
-      .bg-indigo-600 { background-color: var(--primary-color) !important; }
-      .hover\\:bg-indigo-700:hover { filter: brightness(0.9); }
-      .text-indigo-600 { color: var(--primary-color) !important; }
-      .text-indigo-700 { color: var(--primary-color) !important; filter: brightness(0.85); }
-      .bg-indigo-50 { background-color: var(--primary-light) !important; }
-      .border-indigo-600 { border-color: var(--primary-color) !important; }
-      .border-indigo-100 { border-color: var(--primary-light) !important; }
-      .focus\\:ring-indigo-500:focus { --tw-ring-color: var(--primary-color) !important; }
-      .bg-emerald-600 { background-color: var(--secondary-color) !important; }
-      .text-emerald-600 { color: var(--secondary-color) !important; }
-      .bg-emerald-50 { background-color: var(--secondary-light) !important; }
-    `;
-  }, [themeConfig]);
-
-  const addItem = useCallback((itemData: Omit<Item, 'id'>) => {
-    const newItem: Item = { ...itemData, id: crypto.randomUUID() };
+  const addItem = useCallback((itemData: Omit<Item, 'id' | 'stock'>) => {
+    const newItem: Item = { ...itemData, id: crypto.randomUUID(), stock: itemData.openingStock };
     setItems(prev => [...prev, newItem]);
     return newItem;
   }, []);
@@ -306,227 +253,125 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setItems(prev => prev.filter(item => item.id !== id));
   }, []);
 
+  const bulkUpdateItemStock = useCallback((updates: { itemId: string, newStock: number }[]) => {
+    setItems(prev => prev.map(item => {
+      const update = updates.find(u => u.itemId === item.id);
+      return update ? { ...item, stock: update.newStock } : item;
+    }));
+  }, []);
+
   const addSupplier = useCallback((supplierData: Omit<Supplier, 'id' | 'isDefault'>) => {
-    setSuppliers(prev => {
-      const numericIds = prev.map(s => parseInt(s.id.split('-')[1])).filter(n => !isNaN(n));
-      const nextId = (numericIds.length > 0 ? Math.max(...numericIds) : 1) + 1;
-      const formattedId = `Sup-${nextId.toString().padStart(4, '0')}`;
-      return [...prev, { ...supplierData, id: formattedId, isDefault: false }];
-    });
+    setSuppliers(prev => [...prev, { ...supplierData, id: `Sup-${(prev.length + 1).toString().padStart(4, '0')}`, isDefault: false }]);
   }, []);
 
   const updateSupplier = useCallback((id: string, supplierData: Partial<Supplier>) => {
-    setSuppliers(prev => prev.map(s => (s.id === id && !s.isDefault) ? { ...s, ...supplierData } : s));
+    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...supplierData } : s));
   }, []);
 
   const deleteSupplier = useCallback((id: string) => {
-    setSuppliers(prev => prev.filter(s => s.id !== id || s.isDefault));
+    setSuppliers(prev => prev.filter(s => s.id !== id));
   }, []);
 
   const addClient = useCallback((clientData: Omit<Client, 'id' | 'isDefault'>) => {
-    setClients(prev => {
-      const numericIds = prev.map(c => parseInt(c.id.split('-')[1])).filter(n => !isNaN(n));
-      const nextId = (numericIds.length > 0 ? Math.max(...numericIds) : 1) + 1;
-      const formattedId = `Sales-${nextId.toString().padStart(4, '0')}`;
-      return [...prev, { ...clientData, id: formattedId, isDefault: false }];
-    });
+    setClients(prev => [...prev, { ...clientData, id: `Sales-${(prev.length + 1).toString().padStart(4, '0')}`, isDefault: false }]);
   }, []);
 
   const updateClient = useCallback((id: string, clientData: Partial<Client>) => {
-    setClients(prev => prev.map(c => (c.id === id && !c.isDefault) ? { ...c, ...clientData } : c));
+    setClients(prev => prev.map(c => c.id === id ? { ...c, ...clientData } : c));
   }, []);
 
   const deleteClient = useCallback((id: string) => {
-    setClients(prev => prev.filter(c => c.id !== id || c.isDefault));
+    setClients(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const addInventoryAuditRecord = useCallback((recordData: Omit<InventoryRecord, 'id'>) => {
+    const newRecord: InventoryRecord = { ...recordData, id: `AUD-${(inventoryAuditRecords.length + 1).toString().padStart(3, '0')}` };
+    setInventoryAuditRecords(prev => [newRecord, ...prev]);
+    return newRecord;
+  }, [inventoryAuditRecords.length]);
+
+  const updateInventoryAuditRecord = useCallback((id: string, recordData: Partial<InventoryRecord>) => {
+    setInventoryAuditRecords(prev => prev.map(r => r.id === id ? { ...r, ...recordData } : r));
+  }, []);
+
+  const deleteInventoryAuditRecord = useCallback((id: string) => {
+    setInventoryAuditRecords(prev => prev.filter(r => r.id !== id));
   }, []);
 
   const recordPurchase = useCallback((purchaseData: Omit<Purchase, 'id'>) => {
-    let newPurchase: Purchase;
-    setPurchases(prev => {
-      const numericIds = prev.map(p => parseInt(p.id.split('-')[1])).filter(n => !isNaN(n));
-      const nextId = (numericIds.length > 0 ? Math.max(...numericIds) : 0) + 1;
-      const formattedId = `PUR-${nextId.toString().padStart(4, '0')}`;
-      newPurchase = { ...purchaseData, id: formattedId };
-      
-      setItems(prevItems => {
-        const updatedItems = [...prevItems];
-        newPurchase.items.forEach(pItem => {
-          const index = updatedItems.findIndex(i => i.id === pItem.itemId);
-          if (index !== -1) updatedItems[index].stock += pItem.quantity;
-        });
-        return updatedItems;
+    const newPurchase: Purchase = { ...purchaseData, id: `PUR-${(purchases.length + 1).toString().padStart(4, '0')}` };
+    setPurchases(prev => [newPurchase, ...prev]);
+    setItems(prevItems => {
+      const updatedItems = [...prevItems];
+      newPurchase.items.forEach(pItem => {
+        const idx = updatedItems.findIndex(i => i.id === pItem.itemId);
+        if (idx !== -1) updatedItems[idx].stock += pItem.quantity;
       });
-      return [newPurchase, ...prev];
+      return updatedItems;
     });
-    // @ts-ignore
     return newPurchase;
-  }, []);
+  }, [purchases.length]);
 
-  const updatePurchase = useCallback((id: string, updatedPurchase: Purchase) => {
-    setPurchases(prev => {
-      const oldPurchase = prev.find(p => p.id === id);
-      if (!oldPurchase) return prev;
-      setItems(prevItems => {
-        const updatedItems = [...prevItems];
-        oldPurchase.items.forEach(pItem => {
-          const index = updatedItems.findIndex(i => i.id === pItem.itemId);
-          if (index !== -1) updatedItems[index].stock -= pItem.quantity;
-        });
-        updatedPurchase.items.forEach(pItem => {
-          const index = updatedItems.findIndex(i => i.id === pItem.itemId);
-          if (index !== -1) updatedItems[index].stock += pItem.quantity;
-        });
-        return updatedItems;
-      });
-      return prev.map(p => p.id === id ? updatedPurchase : p);
-    });
+  const updatePurchase = useCallback((id: string, updated: Purchase) => {
+    setPurchases(prev => prev.map(p => p.id === id ? updated : p));
   }, []);
 
   const deletePurchase = useCallback((id: string) => {
-    setPurchases(prev => {
-      const purchase = prev.find(p => p.id === id);
-      if (purchase) {
-        setItems(prevItems => {
-          const updatedItems = [...prevItems];
-          purchase.items.forEach(pItem => {
-            const index = updatedItems.findIndex(i => i.id === pItem.itemId);
-            if (index !== -1) updatedItems[index].stock -= pItem.quantity;
-          });
-          return updatedItems;
-        });
-      }
-      return prev.filter(p => p.id !== id);
-    });
+    setPurchases(prev => prev.filter(p => p.id !== id));
   }, []);
 
   const recordSale = useCallback((saleData: Omit<Sale, 'id'>) => {
-    let newSale: Sale;
-    setSales(prev => {
-      const numericIds = prev.map(s => parseInt(s.id.split('-')[1])).filter(n => !isNaN(n));
-      const nextId = (numericIds.length > 0 ? Math.max(...numericIds) : 0) + 1;
-      const formattedId = `INV-${nextId.toString().padStart(4, '0')}`;
-      newSale = { ...saleData, id: formattedId };
-      setItems(prevItems => {
-        const updatedItems = [...prevItems];
-        newSale.items.forEach(sItem => {
-          const index = updatedItems.findIndex(i => i.id === sItem.itemId);
-          if (index !== -1) updatedItems[index].stock -= sItem.quantity;
-        });
-        return updatedItems;
+    const newSale: Sale = { ...saleData, id: `INV-${(sales.length + 1).toString().padStart(4, '0')}` };
+    setSales(prev => [newSale, ...prev]);
+    setItems(prevItems => {
+      const updatedItems = [...prevItems];
+      newSale.items.forEach(sItem => {
+        const idx = updatedItems.findIndex(i => i.id === sItem.itemId);
+        if (idx !== -1) updatedItems[idx].stock -= sItem.quantity;
       });
-      return [newSale, ...prev];
+      return updatedItems;
     });
-    // @ts-ignore
     return newSale;
-  }, []);
+  }, [sales.length]);
 
-  const updateSale = useCallback((id: string, updatedSale: Sale) => {
-    setSales(prev => {
-      const oldSale = prev.find(s => s.id === id);
-      if (!oldSale) return prev;
-      setItems(prevItems => {
-        const updatedItems = [...prevItems];
-        oldSale.items.forEach(sItem => {
-          const index = updatedItems.findIndex(i => i.id === sItem.itemId);
-          if (index !== -1) updatedItems[index].stock += sItem.quantity;
-        });
-        updatedSale.items.forEach(sItem => {
-          const index = updatedItems.findIndex(i => i.id === sItem.itemId);
-          if (index !== -1) updatedItems[index].stock -= sItem.quantity;
-        });
-        return updatedItems;
-      });
-      return prev.map(s => s.id === id ? updatedSale : s);
-    });
+  const updateSale = useCallback((id: string, updated: Sale) => {
+    setSales(prev => prev.map(s => s.id === id ? updated : s));
   }, []);
 
   const deleteSale = useCallback((id: string) => {
-    setSales(prev => {
-      const sale = prev.find(s => s.id === id);
-      if (sale) {
-        setItems(prevItems => {
-          const updatedItems = [...prevItems];
-          sale.items.forEach(sItem => {
-            const index = updatedItems.findIndex(i => i.id === sItem.itemId);
-            if (index !== -1) updatedItems[index].stock += sItem.quantity;
-          });
-          return updatedItems;
-        });
-      }
-      return prev.filter(s => s.id !== id);
-    });
+    setSales(prev => prev.filter(s => s.id !== id));
   }, []);
 
-  const addCurrency = useCallback((currencyData: Omit<Currency, 'id'>) => {
-    const newCurrency: Currency = { ...currencyData, id: Date.now().toString() };
-    setCurrencies(prev => [...prev, newCurrency]);
-    return newCurrency;
-  }, []);
-
-  const updateCurrency = useCallback((id: string, currencyData: Partial<Currency>) => {
-    setCurrencies(prev => prev.map(c => c.id === id ? { ...c, ...currencyData } : c));
-  }, []);
-
-  const deleteCurrency = useCallback((id: string) => {
-    setCurrencies(prev => {
-      if (prev.length <= 1) return prev;
-      const filtered = prev.filter(c => c.id !== id);
-      if (id === defaultCurrencyId) setDefaultCurrencyId(filtered[0].id);
-      return filtered;
-    });
-  }, [defaultCurrencyId]);
-
-  const setDefaultCurrency = useCallback((id: string) => setDefaultCurrencyId(id), []);
-
-  const addPaymentType = useCallback((data: Omit<PaymentType, 'id'>) => {
-    const newPt: PaymentType = { ...data, id: `pt-${Date.now()}` };
+  const updateCompanyInfo = (info: CompanyInfo) => setCompanyInfo(info);
+  const updateLogo = (data: string | null) => setLogo(data);
+  const updateFavicon = (data: string | null) => setFavicon(data);
+  const updateThemeConfig = (config: ThemeConfig) => setThemeConfig(config);
+  const addSystemUser = (u: Omit<User, 'id'>) => setSystemUsers(prev => [...prev, { ...u, id: Date.now().toString() }]);
+  const updateSystemUser = (id: string, u: Partial<User>) => setSystemUsers(prev => prev.map(user => user.id === id ? { ...user, ...u } : user));
+  const deleteSystemUser = (id: string) => setSystemUsers(prev => prev.filter(user => user.id !== id));
+  const addCurrency = (c: Omit<Currency, 'id'>) => {
+    const newC = { ...c, id: Date.now().toString() };
+    setCurrencies(prev => [...prev, newC]);
+    return newC;
+  };
+  const updateCurrency = (id: string, c: Partial<Currency>) => setCurrencies(prev => prev.map(curr => curr.id === id ? { ...curr, ...c } : curr));
+  const deleteCurrency = (id: string) => setCurrencies(prev => prev.filter(curr => curr.id !== id));
+  const setDefaultCurrency = (id: string) => setDefaultCurrencyId(id);
+  const addPaymentType = (pt: Omit<PaymentType, 'id'>) => {
+    const newPt = { ...pt, id: Date.now().toString() };
     setPaymentTypes(prev => [...prev, newPt]);
     return newPt;
-  }, []);
-
-  const updatePaymentType = useCallback((id: string, data: Partial<PaymentType>) => {
-    setPaymentTypes(prev => prev.map(pt => pt.id === id ? { ...pt, ...data } : pt));
-  }, []);
-
-  const deletePaymentType = useCallback((id: string) => {
-    setPaymentTypes(prev => {
-      if (prev.length <= 1) return prev;
-      const filtered = prev.filter(pt => pt.id !== id);
-      if (id === defaultPaymentTypeId) setDefaultPaymentTypeId(filtered[0].id);
-      return filtered;
-    });
-  }, [defaultPaymentTypeId]);
-
-  const setDefaultPaymentType = useCallback((id: string) => {
-    setDefaultPaymentTypeId(id);
-    setPaymentTypes(prev => prev.map(pt => ({ ...pt, isDefault: pt.id === id })));
-  }, []);
-
-  const updateCompanyInfo = useCallback((info: CompanyInfo) => setCompanyInfo(info), []);
-  const updateLogo = useCallback((data: string | null) => setLogo(data), []);
-  const updateFavicon = useCallback((data: string | null) => setFavicon(data), []);
-  const updateThemeConfig = useCallback((config: ThemeConfig) => setThemeConfig(config), []);
-
-  const addSystemUser = useCallback((userData: Omit<User, 'id'>) => {
-    setSystemUsers(prev => [...prev, { ...userData, id: `u-${Date.now()}` }]);
-  }, []);
-
-  const updateSystemUser = useCallback((id: string, userData: Partial<User>) => {
-    setSystemUsers(prev => prev.map(u => u.id === id ? { ...u, ...userData } : u));
-  }, []);
-
-  const deleteSystemUser = useCallback((id: string) => {
-    setSystemUsers(prev => prev.filter(u => u.id !== id));
-  }, []);
+  };
+  const updatePaymentType = (id: string, pt: Partial<PaymentType>) => setPaymentTypes(prev => prev.map(p => p.id === id ? { ...p, ...pt } : p));
+  const deletePaymentType = (id: string) => setPaymentTypes(prev => prev.filter(p => p.id !== id));
+  const setDefaultPaymentType = (id: string) => setDefaultPaymentTypeId(id);
 
   return (
     <InventoryContext.Provider value={{
-      items, suppliers, clients, purchases, sales, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
-      addItem, updateItem, deleteItem, addSupplier, updateSupplier, deleteSupplier,
-      addClient, updateClient, deleteClient, recordPurchase, updatePurchase, deletePurchase, recordSale, updateSale, deleteSale,
-      updateCompanyInfo, updateLogo, updateFavicon, updateThemeConfig, addSystemUser, updateSystemUser, deleteSystemUser,
-      addCurrency, updateCurrency, deleteCurrency, setDefaultCurrency,
-      addPaymentType, updatePaymentType, deletePaymentType, setDefaultPaymentType
+      items, purchases, sales, suppliers, clients, inventoryAuditRecords, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
+      addItem, updateItem, deleteItem, bulkUpdateItemStock, addSupplier, updateSupplier, deleteSupplier, addClient, updateClient, deleteClient, addInventoryAuditRecord, updateInventoryAuditRecord, deleteInventoryAuditRecord,
+      recordPurchase, updatePurchase, deletePurchase, recordSale, updateSale, deleteSale, updateCompanyInfo, updateLogo, updateFavicon, updateThemeConfig, addSystemUser, updateSystemUser, deleteSystemUser,
+      addCurrency, updateCurrency, deleteCurrency, setDefaultCurrency, addPaymentType, updatePaymentType, deletePaymentType, setDefaultPaymentType
     }}>
       {children}
     </InventoryContext.Provider>

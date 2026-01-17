@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { InventoryProvider, useInventory } from './context/InventoryContext';
 import Navbar from './components/Navbar';
 import ItemsPage from './pages/ItemsPage';
+import InventoryPage from './pages/InventoryPage';
 import PurchasePage from './pages/PurchasePage';
 import SalesPage from './pages/SalesPage';
 import SuppliersPage from './pages/SuppliersPage';
@@ -11,14 +12,17 @@ import SettingsPage from './pages/SettingsPage';
 import { View } from './types';
 
 const AppContent: React.FC = () => {
-  const [currentView, setCurrentView] = useState<View>('inventory');
+  const [currentView, setCurrentView] = useState<View>('items_list');
   const { companyInfo, logo } = useInventory();
 
   const renderContent = () => {
     switch (currentView) {
       case 'items':
-      case 'inventory':
+      case 'items_list':
         return <ItemsPage />;
+      case 'inventory':
+      case 'inventory_count':
+        return <InventoryPage />;
       case 'suppliers':
         return <SuppliersPage />;
       case 'clients':

@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useInventory } from '../context/InventoryContext';
 import { TransactionItem, Item, Purchase, Currency, View, PurchaseExpense } from '../types';
+import SearchableItemSelector from '../components/SearchableItemSelector';
 import { jsPDF } from 'https://esm.sh/jspdf';
 import autoTable from 'https://esm.sh/jspdf-autotable';
 
@@ -22,11 +23,16 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
   const isImportMode = currentView === 'purchases_import';
   const primaryColor = themeConfig.colors[0] || '#4f46e5';
 
+  const formatAmount = (val: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }).format(val);
+  };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view' | 'success'>('create');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activeItemRowIndex, setActiveItemRowIndex] = useState<number | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
@@ -117,8 +123,8 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
         <tr>
           <td style="border-bottom: 1px solid #eee; padding: 12px 0;">${item?.name || 'Unknown Item'}</td>
           <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: center;">${pItem.quantity}</td>
-          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right;">${curr.symbol} ${pItem.unitPrice.toFixed(curr.digits)}</td>
-          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right; font-weight: bold;">${curr.symbol} ${pItem.total.toFixed(curr.digits)}</td>
+          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right;">${curr.symbol} ${formatAmount(pItem.unitPrice)}</td>
+          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right; font-weight: bold;">${curr.symbol} ${formatAmount(pItem.total)}</td>
         </tr>
       `;
     }).join('');
@@ -131,7 +137,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
             ${purchase.expenses.map(e => `
               <tr>
                 <td style="padding: 5px 0;">${e.description}</td>
-                <td style="text-align: right; padding: 5px 0;">${curr.symbol} ${e.amount.toFixed(curr.digits)}</td>
+                <td style="text-align: right; padding: 5px 0;">${curr.symbol} ${formatAmount(e.amount)}</td>
               </tr>
             `).join('')}
           </table>
@@ -189,7 +195,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
           ${expensesHtml}
           <div class="total-row">
             <p style="margin: 0; color: #666; font-weight: bold; text-transform: uppercase; font-size: 12px;">Grand Total</p>
-            <h2>${curr.symbol} ${purchase.grandTotal.toFixed(curr.digits)}</h2>
+            <h2>${curr.symbol} ${formatAmount(purchase.grandTotal)}</h2>
           </div>
           <div style="margin-top: 80px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
             This is a computer generated invoice. Authorized signature required for validity.
@@ -242,8 +248,8 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
       return [
         item?.name || 'Unknown Item',
         pItem.quantity.toString(),
-        `${curr.symbol} ${pItem.unitPrice.toFixed(curr.digits)}`,
-        `${curr.symbol} ${pItem.total.toFixed(curr.digits)}`
+        `${curr.symbol} ${formatAmount(pItem.unitPrice)}`,
+        `${curr.symbol} ${formatAmount(pItem.total)}`
       ];
     });
 
@@ -262,7 +268,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
       doc.setFontSize(11);
       doc.setTextColor(0);
       doc.text('Expenses Summary', 14, finalY + 15);
-      const expenseData = purchase.expenses.map(e => [e.description, `${curr.symbol} ${e.amount.toFixed(curr.digits)}`]);
+      const expenseData = purchase.expenses.map(e => [e.description, `${curr.symbol} ${formatAmount(e.amount)}`]);
       autoTable(doc, {
         startY: finalY + 20,
         head: [['Expense Description', 'Amount']],
@@ -277,7 +283,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
     doc.text('Grand Total:', 120, finalY + 20);
     doc.setFontSize(20);
     doc.setTextColor(primaryColor);
-    doc.text(`${curr.symbol} ${purchase.grandTotal.toFixed(curr.digits)}`, 120, finalY + 30);
+    doc.text(`${curr.symbol} ${formatAmount(purchase.grandTotal)}`, 120, finalY + 30);
 
     doc.save(`${purchase.type}_Invoice_${purchase.id}.pdf`);
   };
@@ -503,10 +509,13 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
                         <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50/30 p-4 rounded-xl border border-gray-100">
                           <div className="col-span-12 md:col-span-4 space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase">ITEM</label>
-                            <select disabled={modalMode === 'view'} required className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm" value={pItem.itemId} onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}>
-                              <option value="">Select Item</option>
-                              {items.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-                            </select>
+                            <SearchableItemSelector
+                              disabled={modalMode === 'view'}
+                              items={items}
+                              selectedId={pItem.itemId}
+                              onSelect={(id) => handleItemChange(index, 'itemId', id)}
+                              placeholder="Select Item..."
+                            />
                           </div>
                           <div className="col-span-6 md:col-span-2 space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase">QTY</label>
@@ -514,11 +523,11 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
                           </div>
                           <div className="col-span-6 md:col-span-3 space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase">UNIT PRICE</label>
-                            <input disabled={modalMode === 'view'} required type="number" step="any" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" value={pItem.unitPrice || ''} onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)} />
+                            <input disabled={modalMode === 'view'} required type="number" step="0.001" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" value={pItem.unitPrice || ''} onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)} />
                           </div>
                           <div className="col-span-10 md:col-span-2 space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase">TOTAL</label>
-                            <div className="px-3 py-2 bg-white border border-gray-100 rounded-lg text-indigo-700 font-bold text-sm">{activeCurrency.symbol} {pItem.total.toFixed(activeCurrency.digits)}</div>
+                            <div className="px-3 py-2 bg-white border border-gray-100 rounded-lg text-indigo-700 font-bold text-sm">{activeCurrency.symbol} {formatAmount(pItem.total)}</div>
                           </div>
                           <div className="col-span-2 md:col-span-1 pb-1">
                             {modalMode !== 'view' && <button type="button" onClick={() => removeItemRow(index)} className="text-red-400 hover:text-red-600">✕</button>}
@@ -544,7 +553,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
                             </div>
                             <div className="col-span-10 md:col-span-4 space-y-1">
                               <label className="text-[10px] font-bold text-amber-500/60 uppercase">AMOUNT</label>
-                              <input disabled={modalMode === 'view'} required type="number" step="any" className="w-full px-3 py-2 border border-amber-100 rounded-lg bg-white text-sm font-bold text-amber-700" value={exp.amount || ''} onChange={(e) => handleExpenseChange(idx, 'amount', e.target.value)} />
+                              <input disabled={modalMode === 'view'} required type="number" step="0.001" className="w-full px-3 py-2 border border-amber-100 rounded-lg bg-white text-sm font-bold text-amber-700" value={exp.amount || ''} onChange={(e) => handleExpenseChange(idx, 'amount', e.target.value)} />
                             </div>
                             <div className="col-span-2 md:col-span-1 pb-1">
                               {modalMode !== 'view' && <button type="button" onClick={() => removeExpenseRow(idx)} className="text-red-400 hover:text-red-600">✕</button>}
@@ -559,17 +568,17 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
                     <div className="grid grid-cols-2 md:flex items-center gap-x-8 gap-y-2">
                        <div className="flex flex-col">
                          <span className="text-[10px] font-bold text-gray-400 uppercase">Items Subtotal</span>
-                         <span className="text-xl font-bold text-gray-700">{activeCurrency.symbol} {itemsSubtotal.toFixed(activeCurrency.digits)}</span>
+                         <span className="text-xl font-bold text-gray-700">{activeCurrency.symbol} {formatAmount(itemsSubtotal)}</span>
                        </div>
                        {isImportMode && (
                          <div className="flex flex-col">
                            <span className="text-[10px] font-bold text-amber-400 uppercase">Total Expenses</span>
-                           <span className="text-xl font-bold text-amber-600">{activeCurrency.symbol} {expensesTotal.toFixed(activeCurrency.digits)}</span>
+                           <span className="text-xl font-bold text-amber-600">{activeCurrency.symbol} {formatAmount(expensesTotal)}</span>
                          </div>
                        )}
                        <div className="col-span-2 flex flex-col md:ml-4 border-l border-gray-100 pl-8">
                          <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">FINAL GRAND TOTAL</span>
-                         <span className="text-4xl font-black text-indigo-600 tracking-tighter">{activeCurrency.symbol} {grandTotal.toFixed(activeCurrency.digits)}</span>
+                         <span className="text-4xl font-black text-indigo-600 tracking-tighter">{activeCurrency.symbol} {formatAmount(grandTotal)}</span>
                        </div>
                     </div>
                     <div className="flex gap-4 w-full md:w-auto">
@@ -582,7 +591,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
                 <div className="p-12 space-y-8 text-center max-w-md mx-auto">
                   <h3 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Ready to Finalize?</h3>
                   <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100 space-y-4 text-left">
-                     <div className="flex justify-between border-b pb-2"><span className="text-xs text-gray-400">Total Invoice</span><span className="font-bold">{activeCurrency.symbol} {grandTotal.toFixed(activeCurrency.digits)}</span></div>
+                     <div className="flex justify-between border-b pb-2"><span className="text-xs text-gray-400">Total Invoice</span><span className="font-bold">{activeCurrency.symbol} {formatAmount(grandTotal)}</span></div>
                      <div className="flex justify-between"><span className="text-xs text-gray-400">Payment</span><span className="font-bold text-indigo-600">{activePaymentType?.name}</span></div>
                   </div>
                   <div className="flex gap-4">
@@ -635,8 +644,8 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
                       <td className="px-6 py-4 font-mono font-bold text-gray-500 text-sm">{p.id}</td>
                       <td className="px-6 py-4 font-bold text-gray-800">{p.supplierName}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{p.date}</td>
-                      {isImportMode && <td className="px-6 py-4 text-center font-bold text-amber-600 text-xs">{overhead > 0 ? `+ ${curr.symbol} ${overhead.toFixed(curr.digits)}` : '-'}</td>}
-                      <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{curr.symbol} {p.grandTotal.toFixed(curr.digits)}</td>
+                      {isImportMode && <td className="px-6 py-4 text-center font-bold text-amber-600 text-xs">{overhead > 0 ? `+ ${curr.symbol} ${formatAmount(overhead)}` : '-'}</td>}
+                      <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{curr.symbol} {formatAmount(p.grandTotal)}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                           <button onClick={() => handleView(p)} className="p-2 text-gray-400 hover:text-indigo-600">🔍</button>

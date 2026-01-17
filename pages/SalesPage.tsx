@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useInventory } from '../context/InventoryContext';
-import { TransactionItem, Sale, View } from '../types';
+import { TransactionItem, Sale, View, Item } from '../types';
+import SearchableItemSelector from '../components/SearchableItemSelector';
 import { jsPDF } from 'https://esm.sh/jspdf';
 import autoTable from 'https://esm.sh/jspdf-autotable';
 
@@ -19,6 +20,13 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
   } = useInventory();
 
   const primaryColor = themeConfig.colors[0] || '#4f46e5';
+
+  const formatAmount = (val: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }).format(val);
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view' | 'success'>('create');
@@ -95,8 +103,8 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
         <tr>
           <td style="border-bottom: 1px solid #eee; padding: 12px 0;">${item?.name || 'Unknown Item'}</td>
           <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: center;">${sItem.quantity}</td>
-          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right;">${curr.symbol} ${sItem.unitPrice.toFixed(curr.digits)}</td>
-          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right; font-weight: bold;">${curr.symbol} ${sItem.total.toFixed(curr.digits)}</td>
+          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right;">${curr.symbol} ${formatAmount(sItem.unitPrice)}</td>
+          <td style="border-bottom: 1px solid #eee; padding: 12px 0; text-align: right; font-weight: bold;">${curr.symbol} ${formatAmount(sItem.total)}</td>
         </tr>
       `;
     }).join('');
@@ -151,7 +159,7 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
           </table>
           <div class="total-row">
             <p style="margin: 0; color: #666; font-weight: bold; text-transform: uppercase; font-size: 12px;">Grand Total</p>
-            <h2>${curr.symbol} ${sale.grandTotal.toFixed(curr.digits)}</h2>
+            <h2>${curr.symbol} ${formatAmount(sale.grandTotal)}</h2>
           </div>
           <div style="margin-top: 80px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
             Thank you for your business. This is a computer generated invoice.
@@ -206,8 +214,8 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
       return [
         item?.name || 'Unknown Item',
         sItem.quantity.toString(),
-        `${curr.symbol} ${sItem.unitPrice.toFixed(curr.digits)}`,
-        `${curr.symbol} ${sItem.total.toFixed(curr.digits)}`
+        `${curr.symbol} ${formatAmount(sItem.unitPrice)}`,
+        `${curr.symbol} ${formatAmount(sItem.total)}`
       ];
     });
 
@@ -229,7 +237,7 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
     doc.text('Grand Total:', 140, finalY + 20);
     doc.setFontSize(20);
     doc.setTextColor(primaryColor);
-    doc.text(`${curr.symbol} ${sale.grandTotal.toFixed(curr.digits)}`, 140, finalY + 30);
+    doc.text(`${curr.symbol} ${formatAmount(sale.grandTotal)}`, 140, finalY + 30);
 
     doc.save(`Sales_Invoice_${sale.id}.pdf`);
   };
@@ -503,20 +511,21 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
                         <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end bg-gray-50/50 p-3 rounded-xl border border-gray-100">
                           <div className="md:col-span-4 space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Item</label>
-                            <select
+                            <SearchableItemSelector
                               disabled={modalMode === 'view'}
-                              required
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white disabled:bg-gray-50"
-                              value={sItem.itemId}
-                              onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
-                            >
-                              <option value="">Select Item</option>
-                              {items.map(item => (
-                                <option key={item.id} value={item.id} disabled={modalMode !== 'view' && item.stock <= 0}>
-                                  {item.name} ({item.stock} in stock)
-                                </option>
-                              ))}
-                            </select>
+                              items={items}
+                              selectedId={sItem.itemId}
+                              onSelect={(id) => handleItemChange(index, 'itemId', id)}
+                              placeholder="Choose item..."
+                              renderExtraInfo={(item) => (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${
+                                  item.stock <= 5 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'
+                                }`}>
+                                  {item.stock} LEFT
+                                </span>
+                              )}
+                              disablePredicate={(item) => modalMode !== 'view' && item.stock <= 0}
+                            />
                           </div>
                           <div className="md:col-span-2 space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Qty</label>
@@ -537,7 +546,7 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
                               disabled={modalMode === 'view'}
                               required
                               type="number"
-                              step="any"
+                              step="0.001"
                               className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-50"
                               value={sItem.unitPrice}
                               onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
@@ -546,7 +555,7 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
                           <div className="md:col-span-3 space-y-1">
                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total</label>
                             <div className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-indigo-700 font-mono font-bold">
-                              {currency.symbol} {sItem.total.toFixed(currency.digits)}
+                              {currency.symbol} {formatAmount(sItem.total)}
                             </div>
                           </div>
                           <div className="md:col-span-1 flex justify-center">
@@ -562,7 +571,7 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
                   </div>
 
                   <div className="pt-6 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="text-lg"><span className="text-gray-500 font-medium">Grand Total:</span> <span className="text-4xl font-black text-indigo-600 tracking-tighter">{currency.symbol} {grandTotal.toFixed(currency.digits)}</span></div>
+                    <div className="text-lg"><span className="text-gray-500 font-medium">Grand Total:</span> <span className="text-4xl font-black text-indigo-600 tracking-tighter">{currency.symbol} {formatAmount(grandTotal)}</span></div>
                     <div className="flex gap-3 w-full md:w-auto">
                       <button type="button" onClick={closeModal} className="flex-1 md:flex-none px-8 py-3 border-2 border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-colors">
                         {modalMode === 'view' ? 'Close' : 'Cancel'}
@@ -606,7 +615,7 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
                      </div>
                      <div className="flex justify-between items-center pt-2">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Invoice Total</span>
-                        <span className="text-3xl font-black text-indigo-600 tracking-tighter">{currency.symbol} {grandTotal.toFixed(currency.digits)}</span>
+                        <span className="text-3xl font-black text-indigo-600 tracking-tighter">{currency.symbol} {formatAmount(grandTotal)}</span>
                      </div>
                   </div>
 
@@ -708,7 +717,7 @@ const SalesPage: React.FC<SalesPageProps> = ({ setView }) => {
                           {pt?.name || 'Cash'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{currency.symbol} {s.grandTotal.toFixed(currency.digits)}</td>
+                      <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{currency.symbol} {formatAmount(s.grandTotal)}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                           <button onClick={() => handleView(s)} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors" title="View"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
