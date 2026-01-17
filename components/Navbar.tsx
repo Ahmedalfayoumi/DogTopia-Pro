@@ -31,8 +31,25 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
         { id: 'inventory_count', label: 'Inventory', icon: '📏' }
       ]
     },
-    { id: 'suppliers', label: 'Suppliers', icon: '🤝' },
+    { 
+      id: 'suppliers', 
+      label: 'Suppliers', 
+      icon: '🤝',
+      children: [
+        { id: 'suppliers_local', label: 'Local Suppliers', icon: '🏠' },
+        { id: 'suppliers_overseas', label: 'Overseas Suppliers', icon: '🌍' }
+      ]
+    },
     { id: 'clients', label: 'Clients', icon: '👥' },
+    { 
+      id: 'vouchers', 
+      label: 'Vouchers', 
+      icon: '🧾',
+      children: [
+        { id: 'receipt_vouchers', label: 'Receipt Voucher', icon: '📥' },
+        { id: 'payment_vouchers', label: 'Payment Voucher', icon: '📤' }
+      ]
+    },
     { 
       id: 'purchases', 
       label: 'Purchases', 

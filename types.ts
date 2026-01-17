@@ -21,6 +21,7 @@ export interface Supplier {
   phone: string;
   email: string;
   address: string;
+  type: 'Local' | 'Overseas';
   isDefault?: boolean;
 }
 
@@ -105,6 +106,18 @@ export interface Sale {
   paymentTypeId: string;
 }
 
+export interface Voucher {
+  id: string;
+  type: 'Receipt' | 'Payment';
+  entityId: string; // Client ID for Receipt, Supplier ID for Payment
+  entityName: string;
+  date: string;
+  amount: number;
+  paymentTypeId: string;
+  note: string;
+  reference?: string;
+}
+
 export interface InventoryAuditItem {
   itemId: string;
   name: string;
@@ -139,7 +152,12 @@ export type View =
   | 'purchases_import' 
   | 'sales' 
   | 'suppliers' 
+  | 'suppliers_local'
+  | 'suppliers_overseas'
   | 'clients' 
+  | 'vouchers'
+  | 'receipt_vouchers'
+  | 'payment_vouchers'
   | 'settings' 
   | 'settings_company' 
   | 'settings_appearance' 

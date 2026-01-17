@@ -1,16 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
 import { useInventory } from '../context/InventoryContext';
-import { Supplier } from '../types';
+import { Supplier, View } from '../types';
+
+interface SuppliersPageProps {
+  currentView?: View;
+}
 
 type SortKey = 'id' | 'name' | 'contactPerson' | 'phone' | 'email' | 'address';
 
-const SuppliersPage: React.FC = () => {
+const SuppliersPage: React.FC<SuppliersPageProps> = ({ currentView }) => {
   const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null);
+
+  const filterType = currentView === 'suppliers_overseas' ? 'Overseas' : 'Local';
 
   const [formData, setFormData] = useState<Omit<Supplier, 'id' | 'isDefault'>>({
     name: '',
@@ -18,10 +24,13 @@ const SuppliersPage: React.FC = () => {
     phone: '',
     email: '',
     address: '',
+    type: filterType,
   });
 
   const filteredAndSortedSuppliers = useMemo(() => {
-    let result = suppliers.filter(s => 
+    let result = suppliers.filter(s => s.type === filterType);
+    
+    result = result.filter(s => 
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       s.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,7 +48,7 @@ const SuppliersPage: React.FC = () => {
       });
     }
     return result;
-  }, [suppliers, searchTerm, sortConfig]);
+  }, [suppliers, searchTerm, sortConfig, filterType]);
 
   const handleSort = (key: SortKey) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -54,7 +63,7 @@ const SuppliersPage: React.FC = () => {
     if (editingId) {
       updateSupplier(editingId, formData);
     } else {
-      addSupplier(formData);
+      addSupplier({ ...formData, type: filterType });
     }
     closeModal();
   };
@@ -68,6 +77,7 @@ const SuppliersPage: React.FC = () => {
       phone: supplier.phone,
       email: supplier.email,
       address: supplier.address,
+      type: supplier.type,
     });
     setIsModalOpen(true);
   };
@@ -80,6 +90,7 @@ const SuppliersPage: React.FC = () => {
       phone: '',
       email: '',
       address: '',
+      type: filterType,
     });
     setIsModalOpen(true);
   };
@@ -102,7 +113,7 @@ const SuppliersPage: React.FC = () => {
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                {editingId ? '✏️ Edit Supplier' : '🤝 Add New Supplier'}
+                {editingId ? '✏️ Edit Supplier' : filterType === 'Local' ? '🏠 Add Local Supplier' : '🌍 Add Overseas Supplier'}
               </h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,8 +205,8 @@ const SuppliersPage: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white">
           <div className="flex-grow">
-            <h2 className="text-2xl font-bold text-gray-800">Suppliers Directory</h2>
-            <p className="text-gray-500 text-sm mt-1">Manage your business partners and vendors</p>
+            <h2 className="text-2xl font-bold text-gray-800">{filterType} Suppliers Directory</h2>
+            <p className="text-gray-500 text-sm mt-1">Manage your {filterType.toLowerCase()} business partners and vendors</p>
             
             {/* Search Box */}
             <div className="mt-4 relative max-w-md">
@@ -218,7 +229,7 @@ const SuppliersPage: React.FC = () => {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
             </svg>
-            Add Supplier
+            Add {filterType} Supplier
           </button>
         </div>
         <div className="overflow-x-auto">
@@ -260,7 +271,7 @@ const SuppliersPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredAndSortedSuppliers.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-16 text-center text-gray-400 italic">No matching suppliers found</td></tr>
+                <tr><td colSpan={6} className="px-6 py-16 text-center text-gray-400 italic">No matching {filterType.toLowerCase()} suppliers found</td></tr>
               ) : (
                 filteredAndSortedSuppliers.map((supplier) => (
                   <tr key={supplier.id} className={`transition-colors group ${supplier.isDefault ? 'bg-indigo-50/20' : 'hover:bg-gray-50'}`}>

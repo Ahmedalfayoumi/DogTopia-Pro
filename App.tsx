@@ -9,6 +9,7 @@ import SalesPage from './pages/SalesPage';
 import SuppliersPage from './pages/SuppliersPage';
 import ClientsPage from './pages/ClientsPage';
 import SettingsPage from './pages/SettingsPage';
+import VoucherPage from './pages/VoucherPage';
 import { View } from './types';
 
 const AppContent: React.FC = () => {
@@ -24,9 +25,15 @@ const AppContent: React.FC = () => {
       case 'inventory_count':
         return <InventoryPage />;
       case 'suppliers':
-        return <SuppliersPage />;
+      case 'suppliers_local':
+      case 'suppliers_overseas':
+        return <SuppliersPage currentView={currentView} />;
       case 'clients':
         return <ClientsPage />;
+      case 'vouchers':
+      case 'receipt_vouchers':
+      case 'payment_vouchers':
+        return <VoucherPage currentView={currentView} setView={setCurrentView} />;
       case 'purchases':
       case 'purchases_local':
       case 'purchases_import':

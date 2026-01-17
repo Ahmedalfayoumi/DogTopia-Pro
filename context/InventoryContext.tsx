@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Item, Purchase, Sale, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig, InventoryRecord } from '../types';
+import { Item, Purchase, Sale, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig, InventoryRecord, Voucher } from '../types';
 
 interface InventoryContextType {
   items: Item[];
@@ -8,6 +8,7 @@ interface InventoryContextType {
   sales: Sale[];
   suppliers: Supplier[];
   clients: Client[];
+  vouchers: Voucher[];
   inventoryAuditRecords: InventoryRecord[];
   companyInfo: CompanyInfo;
   systemUsers: User[];
@@ -37,6 +38,9 @@ interface InventoryContextType {
   recordSale: (sale: Omit<Sale, 'id'>) => Sale;
   updateSale: (id: string, sale: Sale) => void;
   deleteSale: (id: string) => void;
+  addVoucher: (voucher: Omit<Voucher, 'id'>) => Voucher;
+  updateVoucher: (id: string, voucher: Partial<Voucher>) => void;
+  deleteVoucher: (id: string) => void;
   updateCompanyInfo: (info: CompanyInfo) => void;
   updateLogo: (data: string | null) => void;
   updateFavicon: (data: string | null) => void;
@@ -106,30 +110,14 @@ const SEED_AUDITS: InventoryRecord[] = [
     items: [
       { itemId: 'i-1', name: 'iPhone 15 Pro', barcode: '1942538123', systemQty: 45, physicalQty: 42, difference: -3, impactValue: -2850, unitPrice: 950 }
     ]
-  },
-  {
-    id: 'AUD-002',
-    date: '2024-02-10',
-    status: 'Adjusted',
-    totalImpact: 1150,
-    items: [
-      { itemId: 'i-2', name: 'MacBook Air M2', barcode: '1942530044', systemQty: 14, physicalQty: 15, difference: 1, impactValue: 1150, unitPrice: 1150 }
-    ]
-  },
-  {
-    id: 'AUD-003',
-    date: '2024-03-05',
-    status: 'Draft',
-    totalImpact: 0,
-    items: [
-      { itemId: 'i-3', name: 'Logitech MX Master 3S', barcode: '0978551703', systemQty: 85, physicalQty: 85, difference: 0, impactValue: 0, unitPrice: 85 }
-    ]
   }
 ];
 
 const SEED_SUPPLIERS: Supplier[] = [
-  { id: 'Sup-0001', name: 'Cash Purchase', contactPerson: 'N/A', phone: 'N/A', email: 'N/A', address: 'N/A', isDefault: true },
-  { id: 'Sup-0002', name: 'TechDistro Jordan', contactPerson: 'Zaid Omar', phone: '079-111-2222', email: 'sales@techdistro.jo', address: 'Amman, Gardens St.' }
+  { id: 'Sup-0001', name: 'Cash Purchase', contactPerson: 'N/A', phone: 'N/A', email: 'N/A', address: 'N/A', type: 'Local', isDefault: true },
+  { id: 'Sup-0002', name: 'TechDistro Jordan', contactPerson: 'Zaid Omar', phone: '079-111-2222', email: 'sales@techdistro.jo', address: 'Amman, Gardens St.', type: 'Local' },
+  { id: 'Sup-0003', name: 'Global Components Ltd', contactPerson: 'Chen Wei', phone: '+86-10-8888-9999', email: 'export@globalcomp.cn', address: 'Shenzhen, China', type: 'Overseas' },
+  { id: 'Sup-0004', name: 'EuroParts GmbH', contactPerson: 'Hans Mueller', phone: '+49-30-555-0123', email: 'info@europarts.de', address: 'Berlin, Germany', type: 'Overseas' }
 ];
 
 const SEED_CLIENTS: Client[] = [
@@ -161,6 +149,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [clients, setClients] = useState<Client[]>(() => {
     const saved = localStorage.getItem('inv_clients');
     return saved ? JSON.parse(saved) : SEED_CLIENTS;
+  });
+
+  const [vouchers, setVouchers] = useState<Voucher[]>(() => {
+    const saved = localStorage.getItem('inv_vouchers');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [inventoryAuditRecords, setInventoryAuditRecords] = useState<InventoryRecord[]>(() => {
@@ -228,6 +221,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => localStorage.setItem('inv_items', JSON.stringify(items)), [items]);
   useEffect(() => localStorage.setItem('inv_suppliers', JSON.stringify(suppliers)), [suppliers]);
   useEffect(() => localStorage.setItem('inv_clients', JSON.stringify(clients)), [clients]);
+  useEffect(() => localStorage.setItem('inv_vouchers', JSON.stringify(vouchers)), [vouchers]);
   useEffect(() => localStorage.setItem('inv_audits', JSON.stringify(inventoryAuditRecords)), [inventoryAuditRecords]);
   useEffect(() => localStorage.setItem('inv_purchases', JSON.stringify(purchases)), [purchases]);
   useEffect(() => localStorage.setItem('inv_sales', JSON.stringify(sales)), [sales]);
@@ -342,6 +336,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setSales(prev => prev.filter(s => s.id !== id));
   }, []);
 
+  const addVoucher = useCallback((voucherData: Omit<Voucher, 'id'>) => {
+    const prefix = voucherData.type === 'Receipt' ? 'RV' : 'PV';
+    const newVoucher: Voucher = { ...voucherData, id: `${prefix}-${(vouchers.length + 1).toString().padStart(4, '0')}` };
+    setVouchers(prev => [newVoucher, ...prev]);
+    return newVoucher;
+  }, [vouchers.length]);
+
+  const updateVoucher = useCallback((id: string, voucherData: Partial<Voucher>) => {
+    setVouchers(prev => prev.map(v => v.id === id ? { ...v, ...voucherData } : v));
+  }, []);
+
+  const deleteVoucher = useCallback((id: string) => {
+    setVouchers(prev => prev.filter(v => v.id !== id));
+  }, []);
+
   const updateCompanyInfo = (info: CompanyInfo) => setCompanyInfo(info);
   const updateLogo = (data: string | null) => setLogo(data);
   const updateFavicon = (data: string | null) => setFavicon(data);
@@ -368,9 +377,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   return (
     <InventoryContext.Provider value={{
-      items, purchases, sales, suppliers, clients, inventoryAuditRecords, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
+      items, purchases, sales, suppliers, clients, vouchers, inventoryAuditRecords, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
       addItem, updateItem, deleteItem, bulkUpdateItemStock, addSupplier, updateSupplier, deleteSupplier, addClient, updateClient, deleteClient, addInventoryAuditRecord, updateInventoryAuditRecord, deleteInventoryAuditRecord,
-      recordPurchase, updatePurchase, deletePurchase, recordSale, updateSale, deleteSale, updateCompanyInfo, updateLogo, updateFavicon, updateThemeConfig, addSystemUser, updateSystemUser, deleteSystemUser,
+      recordPurchase, updatePurchase, deletePurchase, recordSale, updateSale, deleteSale, addVoucher, updateVoucher, deleteVoucher, updateCompanyInfo, updateLogo, updateFavicon, updateThemeConfig, addSystemUser, updateSystemUser, deleteSystemUser,
       addCurrency, updateCurrency, deleteCurrency, setDefaultCurrency, addPaymentType, updatePaymentType, deletePaymentType, setDefaultPaymentType
     }}>
       {children}
