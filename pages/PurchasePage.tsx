@@ -49,6 +49,12 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
   const [expenses, setExpenses] = useState<PurchaseExpense[]>([]);
   const [missingImportItems, setMissingImportItems] = useState<string[]>([]);
 
+  // Filter suppliers based on context (Overseas vs Local)
+  const availableSuppliers = useMemo(() => {
+    const targetType = isImportMode ? 'Overseas' : 'Local';
+    return suppliers.filter(s => s.type === targetType);
+  }, [suppliers, isImportMode]);
+
   const filteredAndSortedPurchases = useMemo(() => {
     const baseType = isImportMode ? 'Import' : 'Local';
     let result = purchases.filter(p => p.type === baseType);
@@ -687,7 +693,7 @@ const PurchasePage: React.FC<PurchasePageProps> = ({ currentView, setView }) => 
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{isImportMode ? 'EXPORTER' : 'SUPPLIER'}</label>
                       <select disabled={modalMode === 'view'} required className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm" value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)}>
                         <option value="">Choose Provider</option>
-                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        {availableSuppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">INVOICE DATE</label><input disabled={modalMode === 'view'} required type="date" className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm" value={date} onChange={(e) => setDate(e.target.value)} /></div>
