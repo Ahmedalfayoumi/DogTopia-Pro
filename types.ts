@@ -96,6 +96,18 @@ export interface Purchase {
   paymentTypeId: string;
 }
 
+export interface PurchaseReturn {
+  id: string;
+  originalPurchaseId: string;
+  type: 'Local' | 'Import';
+  supplierId: string;
+  supplierName: string;
+  date: string;
+  items: TransactionItem[];
+  grandTotal: number;
+  reason: string;
+}
+
 export interface Sale {
   id: string;
   clientId?: string;
@@ -104,6 +116,17 @@ export interface Sale {
   items: TransactionItem[];
   grandTotal: number;
   paymentTypeId: string;
+}
+
+export interface SaleReturn {
+  id: string;
+  originalSaleId: string;
+  clientId?: string;
+  customerName: string;
+  date: string;
+  items: TransactionItem[];
+  grandTotal: number;
+  reason: string;
 }
 
 export interface Voucher {
@@ -149,8 +172,12 @@ export type View =
   | 'inventory' 
   | 'purchases' 
   | 'purchases_local' 
+  | 'purchases_local_return'
   | 'purchases_import' 
+  | 'purchases_import_return'
   | 'sales' 
+  | 'sales_list'
+  | 'sales_return'
   | 'suppliers' 
   | 'suppliers_local'
   | 'suppliers_overseas'

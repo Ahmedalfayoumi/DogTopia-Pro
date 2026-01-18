@@ -1,11 +1,13 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Item, Purchase, Sale, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig, InventoryRecord, Voucher } from '../types';
+import { Item, Purchase, PurchaseReturn, Sale, SaleReturn, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig, InventoryRecord, Voucher } from '../types';
 
 interface InventoryContextType {
   items: Item[];
   purchases: Purchase[];
+  purchaseReturns: PurchaseReturn[];
   sales: Sale[];
+  saleReturns: SaleReturn[];
   suppliers: Supplier[];
   clients: Client[];
   vouchers: Voucher[];
@@ -35,9 +37,13 @@ interface InventoryContextType {
   recordPurchase: (purchase: Omit<Purchase, 'id'>) => Purchase;
   updatePurchase: (id: string, purchase: Purchase) => void;
   deletePurchase: (id: string) => void;
+  recordPurchaseReturn: (pReturn: Omit<PurchaseReturn, 'id'>) => PurchaseReturn;
+  deletePurchaseReturn: (id: string) => void;
   recordSale: (sale: Omit<Sale, 'id'>) => Sale;
   updateSale: (id: string, sale: Sale) => void;
   deleteSale: (id: string) => void;
+  recordSaleReturn: (sReturn: Omit<SaleReturn, 'id'>) => SaleReturn;
+  deleteSaleReturn: (id: string) => void;
   addVoucher: (voucher: Omit<Voucher, 'id'>) => Voucher;
   updateVoucher: (id: string, voucher: Partial<Voucher>) => void;
   deleteVoucher: (id: string) => void;
@@ -166,8 +172,18 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [purchaseReturns, setPurchaseReturns] = useState<PurchaseReturn[]>(() => {
+    const saved = localStorage.getItem('inv_purchase_returns');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [sales, setSales] = useState<Sale[]>(() => {
     const saved = localStorage.getItem('inv_sales');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [saleReturns, setSaleReturns] = useState<SaleReturn[]>(() => {
+    const saved = localStorage.getItem('inv_sale_returns');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -224,7 +240,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => localStorage.setItem('inv_vouchers', JSON.stringify(vouchers)), [vouchers]);
   useEffect(() => localStorage.setItem('inv_audits', JSON.stringify(inventoryAuditRecords)), [inventoryAuditRecords]);
   useEffect(() => localStorage.setItem('inv_purchases', JSON.stringify(purchases)), [purchases]);
+  useEffect(() => localStorage.setItem('inv_purchase_returns', JSON.stringify(purchaseReturns)), [purchaseReturns]);
   useEffect(() => localStorage.setItem('inv_sales', JSON.stringify(sales)), [sales]);
+  useEffect(() => localStorage.setItem('inv_sale_returns', JSON.stringify(saleReturns)), [saleReturns]);
   useEffect(() => localStorage.setItem('inv_company', JSON.stringify(companyInfo)), [companyInfo]);
   useEffect(() => localStorage.setItem('inv_users', JSON.stringify(systemUsers)), [systemUsers]);
   useEffect(() => localStorage.setItem('inv_currencies', JSON.stringify(currencies)), [currencies]);
@@ -314,6 +332,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setPurchases(prev => prev.filter(p => p.id !== id));
   }, []);
 
+  const recordPurchaseReturn = useCallback((returnData: Omit<PurchaseReturn, 'id'>) => {
+    const newReturn: PurchaseReturn = { ...returnData, id: `PRT-${(purchaseReturns.length + 1).toString().padStart(4, '0')}` };
+    setPurchaseReturns(prev => [newReturn, ...prev]);
+    setItems(prevItems => {
+      const updatedItems = [...prevItems];
+      newReturn.items.forEach(rItem => {
+        const idx = updatedItems.findIndex(i => i.id === rItem.itemId);
+        if (idx !== -1) updatedItems[idx].stock -= rItem.quantity;
+      });
+      return updatedItems;
+    });
+    return newReturn;
+  }, [purchaseReturns.length]);
+
+  const deletePurchaseReturn = useCallback((id: string) => {
+    setPurchaseReturns(prev => prev.filter(r => r.id !== id));
+  }, []);
+
   const recordSale = useCallback((saleData: Omit<Sale, 'id'>) => {
     const newSale: Sale = { ...saleData, id: `INV-${(sales.length + 1).toString().padStart(4, '0')}` };
     setSales(prev => [newSale, ...prev]);
@@ -334,6 +370,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteSale = useCallback((id: string) => {
     setSales(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const recordSaleReturn = useCallback((returnData: Omit<SaleReturn, 'id'>) => {
+    const newReturn: SaleReturn = { ...returnData, id: `SRT-${(saleReturns.length + 1).toString().padStart(4, '0')}` };
+    setSaleReturns(prev => [newReturn, ...prev]);
+    setItems(prevItems => {
+      const updatedItems = [...prevItems];
+      newReturn.items.forEach(rItem => {
+        const idx = updatedItems.findIndex(i => i.id === rItem.itemId);
+        if (idx !== -1) updatedItems[idx].stock += rItem.quantity;
+      });
+      return updatedItems;
+    });
+    return newReturn;
+  }, [saleReturns.length]);
+
+  const deleteSaleReturn = useCallback((id: string) => {
+    setSaleReturns(prev => prev.filter(r => r.id !== id));
   }, []);
 
   const addVoucher = useCallback((voucherData: Omit<Voucher, 'id'>) => {
@@ -377,9 +431,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   return (
     <InventoryContext.Provider value={{
-      items, purchases, sales, suppliers, clients, vouchers, inventoryAuditRecords, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
+      items, purchases, purchaseReturns, sales, saleReturns, suppliers, clients, vouchers, inventoryAuditRecords, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
       addItem, updateItem, deleteItem, bulkUpdateItemStock, addSupplier, updateSupplier, deleteSupplier, addClient, updateClient, deleteClient, addInventoryAuditRecord, updateInventoryAuditRecord, deleteInventoryAuditRecord,
-      recordPurchase, updatePurchase, deletePurchase, recordSale, updateSale, deleteSale, addVoucher, updateVoucher, deleteVoucher, updateCompanyInfo, updateLogo, updateFavicon, updateThemeConfig, addSystemUser, updateSystemUser, deleteSystemUser,
+      recordPurchase, updatePurchase, deletePurchase, recordPurchaseReturn, deletePurchaseReturn, recordSale, updateSale, deleteSale, recordSaleReturn, deleteSaleReturn, addVoucher, updateVoucher, deleteVoucher, updateCompanyInfo, updateLogo, updateFavicon, updateThemeConfig, addSystemUser, updateSystemUser, deleteSystemUser,
       addCurrency, updateCurrency, deleteCurrency, setDefaultCurrency, addPaymentType, updatePaymentType, deletePaymentType, setDefaultPaymentType
     }}>
       {children}

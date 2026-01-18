@@ -56,10 +56,20 @@ const Navbar: React.FC<NavbarProps> = ({ currentView, setView }) => {
       icon: '📥',
       children: [
         { id: 'purchases_local', label: 'Local Purchase', icon: '🏠' },
-        { id: 'purchases_import', label: 'Importing Goods', icon: '🚢' }
+        { id: 'purchases_local_return', label: 'Local Return', icon: '🔄' },
+        { id: 'purchases_import', label: 'Importing Goods', icon: '🚢' },
+        { id: 'purchases_import_return', label: 'Import Return', icon: '↩️' }
       ]
     },
-    { id: 'sales', label: 'Sales', icon: '📤' },
+    { 
+      id: 'sales', 
+      label: 'Sales', 
+      icon: '📤',
+      children: [
+        { id: 'sales_list', label: 'Sales Invoice', icon: '🧾' },
+        { id: 'sales_return', label: 'Sales Return', icon: '🔄' }
+      ]
+    },
     { 
       id: 'settings', 
       label: 'Settings', 

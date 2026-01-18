@@ -5,7 +5,9 @@ import Navbar from './components/Navbar';
 import ItemsPage from './pages/ItemsPage';
 import InventoryPage from './pages/InventoryPage';
 import PurchasePage from './pages/PurchasePage';
+import PurchaseReturnPage from './pages/PurchaseReturnPage';
 import SalesPage from './pages/SalesPage';
+import SalesReturnPage from './pages/SalesReturnPage';
 import SuppliersPage from './pages/SuppliersPage';
 import ClientsPage from './pages/ClientsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -38,8 +40,14 @@ const AppContent: React.FC = () => {
       case 'purchases_local':
       case 'purchases_import':
         return <PurchasePage currentView={currentView} setView={setCurrentView} />;
+      case 'purchases_local_return':
+      case 'purchases_import_return':
+        return <PurchaseReturnPage currentView={currentView} />;
       case 'sales':
+      case 'sales_list':
         return <SalesPage setView={setCurrentView} />;
+      case 'sales_return':
+        return <SalesReturnPage />;
       case 'settings':
       case 'settings_company':
       case 'settings_appearance':
