@@ -11,6 +11,7 @@ import SalesReturnPage from './pages/SalesReturnPage';
 import SuppliersPage from './pages/SuppliersPage';
 import ClientsPage from './pages/ClientsPage';
 import SettingsPage from './pages/SettingsPage';
+import ConstantsPage from './pages/ConstantsPage';
 import VoucherPage from './pages/VoucherPage';
 import { View } from './types';
 
@@ -55,6 +56,13 @@ const AppContent: React.FC = () => {
       case 'settings_currencies':
       case 'settings_payments':
         return <SettingsPage currentView={currentView} setView={setCurrentView} />;
+      case 'settings_constants_measure':
+      case 'settings_constants_brand':
+      case 'settings_constants_type':
+      case 'settings_constants_weight':
+      case 'settings_constants_category':
+      case 'settings_constants_subcategory':
+        return <ConstantsPage currentView={currentView} />;
       default:
         return <ItemsPage />;
     }

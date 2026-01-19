@@ -34,6 +34,38 @@ export interface Client {
   isDefault?: boolean;
 }
 
+export interface MeasureUnit {
+  id: string;
+  name: string;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+}
+
+export interface ItemType {
+  id: string;
+  name: string;
+}
+
+export interface WeightUnit {
+  id: string;
+  name: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+}
+
+export interface Subcategory {
+  id: string;
+  name: string;
+  categoryId: string;
+}
+
 export interface CompanyInfo {
   name: string;
   address: string;
@@ -190,4 +222,10 @@ export type View =
   | 'settings_appearance' 
   | 'settings_users' 
   | 'settings_currencies' 
-  | 'settings_payments';
+  | 'settings_payments'
+  | 'settings_constants_measure'
+  | 'settings_constants_brand'
+  | 'settings_constants_type'
+  | 'settings_constants_weight'
+  | 'settings_constants_category'
+  | 'settings_constants_subcategory';

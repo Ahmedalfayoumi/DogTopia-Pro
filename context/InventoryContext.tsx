@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Item, Purchase, PurchaseReturn, Sale, SaleReturn, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig, InventoryRecord, Voucher } from '../types';
+import { Item, Purchase, PurchaseReturn, Sale, SaleReturn, Supplier, Client, CompanyInfo, User, Currency, PaymentType, ThemeConfig, InventoryRecord, Voucher, MeasureUnit, Brand, ItemType, WeightUnit, Category, Subcategory } from '../types';
 
 interface InventoryContextType {
   items: Item[];
@@ -11,6 +11,12 @@ interface InventoryContextType {
   suppliers: Supplier[];
   clients: Client[];
   vouchers: Voucher[];
+  measureUnits: MeasureUnit[];
+  brands: Brand[];
+  itemTypes: ItemType[];
+  weightUnits: WeightUnit[];
+  categories: Category[];
+  subcategories: Subcategory[];
   inventoryAuditRecords: InventoryRecord[];
   companyInfo: CompanyInfo;
   systemUsers: User[];
@@ -31,6 +37,18 @@ interface InventoryContextType {
   addClient: (client: Omit<Client, 'id' | 'isDefault'>) => void;
   updateClient: (id: string, client: Partial<Client>) => void;
   deleteClient: (id: string) => void;
+  addMeasureUnit: (name: string) => void;
+  deleteMeasureUnit: (id: string) => void;
+  addBrand: (name: string) => void;
+  deleteBrand: (id: string) => void;
+  addItemType: (name: string) => void;
+  deleteItemType: (id: string) => void;
+  addWeightUnit: (name: string) => void;
+  deleteWeightUnit: (id: string) => void;
+  addCategory: (name: string) => void;
+  deleteCategory: (id: string) => void;
+  addSubcategory: (name: string, categoryId: string) => void;
+  deleteSubcategory: (id: string) => void;
   addInventoryAuditRecord: (record: Omit<InventoryRecord, 'id'>) => InventoryRecord;
   updateInventoryAuditRecord: (id: string, record: Partial<InventoryRecord>) => void;
   deleteInventoryAuditRecord: (id: string) => void;
@@ -157,6 +175,36 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return saved ? JSON.parse(saved) : SEED_CLIENTS;
   });
 
+  const [measureUnits, setMeasureUnits] = useState<MeasureUnit[]>(() => {
+    const saved = localStorage.getItem('inv_const_measure');
+    return saved ? JSON.parse(saved) : [{ id: 'mu-1', name: 'Box' }, { id: 'mu-2', name: 'Piece' }];
+  });
+
+  const [brands, setBrands] = useState<Brand[]>(() => {
+    const saved = localStorage.getItem('inv_const_brands');
+    return saved ? JSON.parse(saved) : [{ id: 'br-1', name: 'Non Branding', isDefault: true }];
+  });
+
+  const [itemTypes, setItemTypes] = useState<ItemType[]>(() => {
+    const saved = localStorage.getItem('inv_const_types');
+    return saved ? JSON.parse(saved) : [{ id: 'ty-1', name: 'Electronics' }, { id: 'ty-2', name: 'Consumables' }];
+  });
+
+  const [weightUnits, setWeightUnits] = useState<WeightUnit[]>(() => {
+    const saved = localStorage.getItem('inv_const_weights');
+    return saved ? JSON.parse(saved) : [{ id: 'wu-1', name: 'KG' }, { id: 'wu-2', name: 'Gram' }];
+  });
+
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const saved = localStorage.getItem('inv_const_categories');
+    return saved ? JSON.parse(saved) : [{ id: 'cat-1', name: 'General' }];
+  });
+
+  const [subcategories, setSubcategories] = useState<Subcategory[]>(() => {
+    const saved = localStorage.getItem('inv_const_subcategories');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [vouchers, setVouchers] = useState<Voucher[]>(() => {
     const saved = localStorage.getItem('inv_vouchers');
     return saved ? JSON.parse(saved) : [];
@@ -237,6 +285,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => localStorage.setItem('inv_items', JSON.stringify(items)), [items]);
   useEffect(() => localStorage.setItem('inv_suppliers', JSON.stringify(suppliers)), [suppliers]);
   useEffect(() => localStorage.setItem('inv_clients', JSON.stringify(clients)), [clients]);
+  useEffect(() => localStorage.setItem('inv_const_measure', JSON.stringify(measureUnits)), [measureUnits]);
+  useEffect(() => localStorage.setItem('inv_const_brands', JSON.stringify(brands)), [brands]);
+  useEffect(() => localStorage.setItem('inv_const_types', JSON.stringify(itemTypes)), [itemTypes]);
+  useEffect(() => localStorage.setItem('inv_const_weights', JSON.stringify(weightUnits)), [weightUnits]);
+  useEffect(() => localStorage.setItem('inv_const_categories', JSON.stringify(categories)), [categories]);
+  useEffect(() => localStorage.setItem('inv_const_subcategories', JSON.stringify(subcategories)), [subcategories]);
   useEffect(() => localStorage.setItem('inv_vouchers', JSON.stringify(vouchers)), [vouchers]);
   useEffect(() => localStorage.setItem('inv_audits', JSON.stringify(inventoryAuditRecords)), [inventoryAuditRecords]);
   useEffect(() => localStorage.setItem('inv_purchases', JSON.stringify(purchases)), [purchases]);
@@ -294,6 +348,56 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteClient = useCallback((id: string) => {
     setClients(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const addMeasureUnit = useCallback((name: string) => {
+    setMeasureUnits(prev => [...prev, { id: `mu-${Date.now()}`, name }]);
+  }, []);
+
+  const deleteMeasureUnit = useCallback((id: string) => {
+    setMeasureUnits(prev => prev.filter(u => u.id !== id));
+  }, []);
+
+  const addBrand = useCallback((name: string) => {
+    setBrands(prev => [...prev, { id: `br-${Date.now()}`, name, isDefault: false }]);
+  }, []);
+
+  const deleteBrand = useCallback((id: string) => {
+    setBrands(prev => prev.filter(b => b.id !== id || b.isDefault));
+  }, []);
+
+  const addItemType = useCallback((name: string) => {
+    setItemTypes(prev => [...prev, { id: `ty-${Date.now()}`, name }]);
+  }, []);
+
+  const deleteItemType = useCallback((id: string) => {
+    setItemTypes(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const addWeightUnit = useCallback((name: string) => {
+    setWeightUnits(prev => [...prev, { id: `wu-${Date.now()}`, name }]);
+  }, []);
+
+  const deleteWeightUnit = useCallback((id: string) => {
+    setWeightUnits(prev => prev.filter(w => w.id !== id));
+  }, []);
+
+  const addCategory = useCallback((name: string) => {
+    setCategories(prev => [...prev, { id: `cat-${Date.now()}`, name }]);
+  }, []);
+
+  const deleteCategory = useCallback((id: string) => {
+    setCategories(prev => prev.filter(c => c.id !== id));
+    // Cascade delete subcategories if needed, but per request just standard add/delete functionality
+    setSubcategories(prev => prev.filter(sc => sc.categoryId !== id));
+  }, []);
+
+  const addSubcategory = useCallback((name: string, categoryId: string) => {
+    setSubcategories(prev => [...prev, { id: `scat-${Date.now()}`, name, categoryId }]);
+  }, []);
+
+  const deleteSubcategory = useCallback((id: string) => {
+    setSubcategories(prev => prev.filter(sc => sc.id !== id));
   }, []);
 
   const addInventoryAuditRecord = useCallback((recordData: Omit<InventoryRecord, 'id'>) => {
@@ -431,8 +535,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   return (
     <InventoryContext.Provider value={{
-      items, purchases, purchaseReturns, sales, saleReturns, suppliers, clients, vouchers, inventoryAuditRecords, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
-      addItem, updateItem, deleteItem, bulkUpdateItemStock, addSupplier, updateSupplier, deleteSupplier, addClient, updateClient, deleteClient, addInventoryAuditRecord, updateInventoryAuditRecord, deleteInventoryAuditRecord,
+      items, purchases, purchaseReturns, sales, saleReturns, suppliers, clients, vouchers, measureUnits, brands, itemTypes, weightUnits, categories, subcategories, inventoryAuditRecords, companyInfo, systemUsers, currencies, paymentTypes, defaultCurrencyId, defaultPaymentTypeId, logo, favicon, themeConfig,
+      addItem, updateItem, deleteItem, bulkUpdateItemStock, addSupplier, updateSupplier, deleteSupplier, addClient, updateClient, deleteClient, addMeasureUnit, deleteMeasureUnit, addBrand, deleteBrand, addItemType, deleteItemType, addWeightUnit, deleteWeightUnit, addCategory, deleteCategory, addSubcategory, deleteSubcategory, addInventoryAuditRecord, updateInventoryAuditRecord, deleteInventoryAuditRecord,
       recordPurchase, updatePurchase, deletePurchase, recordPurchaseReturn, deletePurchaseReturn, recordSale, updateSale, deleteSale, recordSaleReturn, deleteSaleReturn, addVoucher, updateVoucher, deleteVoucher, updateCompanyInfo, updateLogo, updateFavicon, updateThemeConfig, addSystemUser, updateSystemUser, deleteSystemUser,
       addCurrency, updateCurrency, deleteCurrency, setDefaultCurrency, addPaymentType, updatePaymentType, deletePaymentType, setDefaultPaymentType
     }}>

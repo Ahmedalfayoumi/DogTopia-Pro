@@ -19,7 +19,12 @@ interface ItemTransaction {
 }
 
 const ItemsPage: React.FC = () => {
-  const { items, addItem, updateItem, deleteItem, currencies, defaultCurrencyId, purchases, sales, companyInfo, logo, themeConfig } = useInventory();
+  const { 
+    items, addItem, updateItem, deleteItem, 
+    currencies, defaultCurrencyId, purchases, sales, 
+    companyInfo, logo, themeConfig, measureUnits 
+  } = useInventory();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedItemForDetails, setSelectedItemForDetails] = useState<Item | null>(null);
@@ -365,11 +370,11 @@ const ItemsPage: React.FC = () => {
       description: '', 
       unitPrice: 0, 
       openingStock: 0,
-      purchaseUnit: 'Box',
-      storageUnit: 'Pack',
-      conversionPurchaseToStorage: 10,
-      sellingUnit: 'Piece',
-      conversionStorageToSelling: 5,
+      purchaseUnit: '',
+      storageUnit: '',
+      conversionPurchaseToStorage: 1,
+      sellingUnit: '',
+      conversionStorageToSelling: 1,
     });
     setIsModalOpen(true);
   };
@@ -423,10 +428,10 @@ const ItemsPage: React.FC = () => {
               description: String(row["Description"] || ""),
               unitPrice: parseFloat(row["Selling Price"]) || 0,
               openingStock: parseInt(row["Opening Stock"]) || 0,
-              purchaseUnit: String(row["Purchase Unit"] || "Box"),
-              storageUnit: String(row["Storage Unit"] || "Pack"),
+              purchaseUnit: String(row["Purchase Unit"] || ""),
+              storageUnit: String(row["Storage Unit"] || ""),
               conversionPurchaseToStorage: parseFloat(row["Conversion P to S"]) || 1,
-              sellingUnit: String(row["Selling Unit"] || "Piece"),
+              sellingUnit: String(row["Selling Unit"] || ""),
               conversionStorageToSelling: parseFloat(row["Conversion S to Sell"]) || 1,
             });
             importCount++;
@@ -653,23 +658,31 @@ const ItemsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">Purchase Unit</label>
-                    <input
+                    <select
                       required
-                      placeholder="e.g. Box"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm"
                       value={formData.purchaseUnit}
                       onChange={(e) => setFormData({ ...formData, purchaseUnit: e.target.value })}
-                    />
+                    >
+                      <option value="">Select Unit</option>
+                      {measureUnits.map(unit => (
+                        <option key={unit.id} value={unit.name}>{unit.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">Storage Unit</label>
-                    <input
+                    <select
                       required
-                      placeholder="e.g. Pack"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm"
                       value={formData.storageUnit}
                       onChange={(e) => setFormData({ ...formData, storageUnit: e.target.value })}
-                    />
+                    >
+                      <option value="">Select Unit</option>
+                      {measureUnits.map(unit => (
+                        <option key={unit.id} value={unit.name}>{unit.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-indigo-500 uppercase">1 {formData.purchaseUnit || 'P.U'} = ? {formData.storageUnit || 'S.U'}</label>
@@ -687,13 +700,17 @@ const ItemsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase">Selling Unit</label>
-                    <input
+                    <select
                       required
-                      placeholder="e.g. Piece"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm"
                       value={formData.sellingUnit}
                       onChange={(e) => setFormData({ ...formData, sellingUnit: e.target.value })}
-                    />
+                    >
+                      <option value="">Select Unit</option>
+                      {measureUnits.map(unit => (
+                        <option key={unit.id} value={unit.name}>{unit.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-1 md:col-span-2">
                     <label className="text-[10px] font-bold text-indigo-500 uppercase">1 {formData.storageUnit || 'S.U'} = ? {formData.sellingUnit || 'Selling unit'}</label>
